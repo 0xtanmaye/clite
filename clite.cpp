@@ -25,12 +25,17 @@ void enableRawMode()
 	struct termios raw = orig_termios;
 
 	// c_lflag is for "local flags" (miscellaneous flags)
+
 	// c_iflag is for "input flags"
+	// Clear IXON attribute to disable pause (Ctrl+S) & resume (Ctrl+Q) transmission
+	raw.c_iflag &= ~(IXON);
+	
 	// c_oflag is for "output flags"
+
 	// c_cflag is for "control flags"
-	// Clear the ECHO attribute to disable printing user input
-	// Clear the ICANON attribute to disable canonical mode (disable line-by-line)
-	// Clear the ISIG attribute to disable SIGINT (Ctrl+C) and SIGTSTP (Ctrl+Z/Y)
+	// Clear ECHO attribute to disable printing user input
+	// Clear ICANON attribute to disable canonical mode (disable line-by-line)
+	// Clear ISIG attribute to disable SIGINT (Ctrl+C) and SIGTSTP (Ctrl+Z/Y)
 	raw.c_lflag &= ~(ECHO | ICANON | ISIG);
 
 	// Set terminal attributes using the modified struct
