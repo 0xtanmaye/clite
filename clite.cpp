@@ -1,4 +1,6 @@
+#include <cctype>
 #include <cstdlib>
+#include <iostream>
 #include <termios.h>
 #include <unistd.h>
 
@@ -43,6 +45,12 @@ int main()
 
 	char c;
 	// Keep reading single character from Standard input until EOF
-	while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q')
+	while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q') {
+		if (iscntrl(c)) {
+			std::cout << +c << std::endl;
+		} else {
+			std::cout << +c << " ('" << c << "')" << std::endl;
+		}
+	}
 	return 0;
 }
