@@ -28,7 +28,8 @@ void enableRawMode()
 
 	// c_iflag is for "input flags"
 	// Clear IXON attribute to disable pause (Ctrl+S) & resume (Ctrl+Q) transmission
-	raw.c_iflag &= ~(IXON);
+	// Clear ICRNL attribute to disable translation of ('\r', 13) to ('\n', 10)
+	raw.c_iflag &= ~(ICRNL | IXON);
 	
 	// c_oflag is for "output flags"
 
