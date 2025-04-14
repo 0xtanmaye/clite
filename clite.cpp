@@ -15,7 +15,12 @@
 
 /*** data ***/
 
-struct termios orig_termios;
+struct editorConfig
+{
+	struct termios orig_termios;
+};
+
+struct editorConfig E;
 
 /*** terminal ***/
 
@@ -40,21 +45,21 @@ void disableRawMode()
 	// TCSAFLUSH argument specifies waits for all pending output to be written
 	// to terminal and discards any input that hasn't been read
 	// tcsetattr() returns -1 on failure, handle that using die()
-	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1)
 		die("tcsetattr");
 }
 
 void enableRawMode()
 {
-	// Fetch and store the current attributes into 'orig_termios'
+	// Fetch and store the current attributes into 'E.orig_termios'
 	// tcgetattr() returns -1 on failure, handle that using die()
-	if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) die("tcgetattr");
+	if (tcgetattr(STDIN_FILENO, &E.orig_termios) == -1) die("tcgetattr");
 
 	// Automatically call disableRawMode() when the program exits
 	atexit(disableRawMode);
 
 	// Create a struct to store modified attributes of terminal
-	struct termios raw = orig_termios;
+	struct termios raw = E.orig_termios;
 
 
 	// c_iflag is for "input flags"
