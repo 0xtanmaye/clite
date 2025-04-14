@@ -21,6 +21,10 @@ struct termios orig_termios;
 
 void die(const char *s)
 {
+	// Clear the screen and reposition the cursor on exit
+	write(STDOUT_FILENO, "\x1b[2J", 4);
+	write(STDOUT_FILENO, "\x1b[H", 3);
+
 	// Prints a descriptive error message for global errno variable along with 's'
 	perror(s);
 	// Without using perror; Using strerror from "cstring"
@@ -127,6 +131,9 @@ void editorProcessKeypress()
 	switch (c) {
 		// Handle Ctrl+Q to quit
 		case CTRL_KEY('q'):
+			// Clear the screen and reposition the cursor on exit
+			write(STDOUT_FILENO, "\x1b[2J", 4);
+			write(STDOUT_FILENO, "\x1b[H", 3);
 			exit(0);
 			break;
 	}
