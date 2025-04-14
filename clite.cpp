@@ -4,6 +4,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <sys/ioctl.h>
 #include <termios.h>
@@ -157,38 +158,74 @@ int getWindowSize(int *rows, int *cols)
 	}
 }
 
+/*** append buffer ***/
+
+struct abuf
+{
+	char *b;
+	int len;
+
+	// Use constructor supported in C++ for struct abuf instead of defined constant
+	abuf() : b(NULL), len(0) {}
+
+	// Use destructor supported in C++ for struct abuf instead of function abFree()
+	~abuf()
+	{
+		free(b);
+	}
+};
+
+// TODO: Refactor later as member function of struct if possible
+void abAppend(struct abuf *ab, const char *s, int len)
+{
+	// Realloc to with original length + length of string to be appended
+	char *newb = (char *) realloc(ab->b, ab->len + len);
+
+	if (newb == NULL) return;
+	// Copy the string at the end of current data in buffer
+	memcpy(&newb[ab->len], s, len);
+	// Update the pointer and length of abuf
+	ab->b = newb;
+	ab->len += len;
+}
+
 /*** output ***/
 
 // Handle drawing of each row of the buffer of the text being edited
-void editorDrawRows()
+void editorDrawRows(struct abuf *ab)
 {
 	int y;
 	for (y = 0; y < E.screenrows; y++) {
-		write(STDOUT_FILENO, "~", 1);
+		abAppend(ab, "~", 1);
 
 		// Print cariage return and newline only if not the last row
 		if (y < E.screenrows - 1) {
-			write(STDOUT_FILENO, "\r\n", 2);
+			abAppend(ab, "\r\n", 2);
 		}
 	}
 }
 
 void editorRefreshScreen()
 {
+	struct abuf ab;
+
 	/* Write escape sequence to terminal to clear the screen
 	 * \x1b is the escape character (27 in decimal)
 	 * [2J is the "Erase In Display" command with argument 2,
 	 * which clears the entire screen
 	 * Escape sequences start with \x1b, followed by [ and an argument
 	 * before the command */
-	write(STDOUT_FILENO, "\x1b[2J", 4);
+	abAppend(&ab, "\x1b[2J", 4);
 	// Write \x1b[H to position the cursor at top-left (1,1), default for 'H'
-	write(STDOUT_FILENO, "\x1b[H", 3);
+	abAppend(&ab, "\x1b[H", 3);
 
-	editorDrawRows();
+	editorDrawRows(&ab);
 
 	// Again reposition cursor to top-left after drawing the rows
-	write(STDOUT_FILENO, "\x1b[H", 3);
+	abAppend(&ab, "\x1b[H", 3);
+
+	// Write the contents of append buffer to screen once
+	write(STDOUT_FILENO, ab.b, ab.len);
 }
 
 /*** input ***/
