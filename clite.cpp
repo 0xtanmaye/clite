@@ -108,6 +108,16 @@ char editorReadKey()
 
 /*** output ***/
 
+// Handle drawing of each row of the buffer of the text being edited
+void editorDrawRows()
+{
+	int y;
+	// For now, just assume and draw for 24 rows
+	for (y = 0; y < 24; y++) {
+		write(STDOUT_FILENO, "~\r\n", 3);
+	}
+}
+
 void editorRefreshScreen()
 {
 	/* Write escape sequence to terminal to clear the screen
@@ -118,6 +128,11 @@ void editorRefreshScreen()
 	 * before the command */
 	write(STDOUT_FILENO, "\x1b[2J", 4);
 	// Write \x1b[H to position the cursor at top-left (1,1), default for 'H'
+	write(STDOUT_FILENO, "\x1b[H", 3);
+
+	editorDrawRows();
+
+	// Again reposition cursor to top-left after drawing the rows
 	write(STDOUT_FILENO, "\x1b[H", 3);
 }
 
