@@ -106,11 +106,15 @@ char editorReadKey()
 
 void editorRefreshScreen()
 {
-	// Write escape sequence to terminal to clear the screen
-	// \x1b is the escape character (27 in decimal)
-	// [2J is the "Erase In Display" command with argument 2, which clears the entire screen
-	// Escape sequences start with \x1b, followed by [ and an argument before the command
+	/* Write escape sequence to terminal to clear the screen
+	 * \x1b is the escape character (27 in decimal)
+	 * [2J is the "Erase In Display" command with argument 2,
+	 * which clears the entire screen
+	 * Escape sequences start with \x1b, followed by [ and an argument
+	 * before the command */
 	write(STDOUT_FILENO, "\x1b[2J", 4);
+	// Write \x1b[H to position the cursor at top-left (1,1), default for 'H'
+	write(STDOUT_FILENO, "\x1b[H", 3);
 }
 
 /*** input ***/
