@@ -102,6 +102,17 @@ char editorReadKey()
 	return c;
 }
 
+/*** output ***/
+
+void editorRefreshScreen()
+{
+	// Write escape sequence to terminal to clear the screen
+	// \x1b is the escape character (27 in decimal)
+	// [2J is the "Erase In Display" command with argument 2, which clears the entire screen
+	// Escape sequences start with \x1b, followed by [ and an argument before the command
+	write(STDOUT_FILENO, "\x1b[2J", 4);
+}
+
 /*** input ***/
 
 // Wait for a keypress and handle it
@@ -125,6 +136,7 @@ int main()
 
 	// Keep reading single character from STDIN
 	while (1) {
+		editorRefreshScreen();
 		editorProcessKeypress();
 	}
 	return 0;
