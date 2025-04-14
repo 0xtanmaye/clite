@@ -12,6 +12,8 @@
 
 /*** defines ***/
 
+#define CLITE_VERSION "0.0.1"
+
 // Clear upper 3 bits of 'k', similar to Ctrl behavior in terminal
 #define CTRL_KEY(k) ((k) & 0x01f)
 
@@ -196,7 +198,17 @@ void editorDrawRows(struct abuf *ab)
 {
 	int y;
 	for (y = 0; y < E.screenrows; y++) {
-		abAppend(ab, "~", 1);
+		if (y == E.screenrows / 3) {
+			char welcome[80];
+			// Store the message in welcome buffer by interpolating the editor version
+			int welcomelen = snprintf(welcome, sizeof(welcome), 
+					"CLiTE editor -- version %s", CLITE_VERSION);
+			// Truncate length of the string if terminal size is too small
+			if (welcomelen > E.screencols) welcomelen = E.screencols;
+			abAppend(ab, welcome, welcomelen);
+		} else {
+			abAppend(ab, "~", 1);
+		}
 
 		// Erase from the cursor to the end of the current line using "\x1b[K".
 		abAppend(ab, "\x1b[K", 3);
