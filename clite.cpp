@@ -114,6 +114,27 @@ char editorReadKey()
 	return c;
 }
 
+int getCursorPosition(int *rows, int *cols)
+{
+	// Send \x1b[6n to query terminal for cursor position (n: Device Status Report)
+	if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) return -1;
+
+	// Read the reply from standard input and print out each character
+	std::cout << "\r\n";
+	char c;
+	while (read(STDIN_FILENO, &c, 1) == 1) {
+		if (iscntrl(c)) {
+			std::cout << +c << "\r\n";
+		} else {
+			std::cout << +c << " ('" << c << "')\r\n";
+		}
+	}
+
+	// Call editorReadKey() to observe escape sequence before die() clears screen
+	editorReadKey();
+	return -1;
+}
+
 int getWindowSize(int *rows, int *cols)
 {
 	struct winsize ws;
@@ -121,7 +142,11 @@ int getWindowSize(int *rows, int *cols)
 	// Get terminal size using ioctl() with TIOCGWINSZ request
 	// Terminal Input/Output Control Get WIN SiZe
 	// Check for erroneous return value -1 or invalid size of 0
-	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
+	if (1 || ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
+		// Move cursor to bottom-right by sending \x1b[999C (right) & \x1b[999B (down)
+		// Avoids using \x1b[999;999H due to undefined behavior off-screen
+		if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12) return -1;
+		return getCursorPosition(rows, cols);
 		return -1;
 	} else {
 		*cols = ws.ws_col;
