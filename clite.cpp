@@ -116,19 +116,22 @@ char editorReadKey()
 
 int getCursorPosition(int *rows, int *cols)
 {
+	char buf[32];
+	unsigned int i = 0;
+
 	// Send \x1b[6n to query terminal for cursor position (n: Device Status Report)
 	if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) return -1;
 
-	// Read the reply from standard input and print out each character
-	std::cout << "\r\n";
-	char c;
-	while (read(STDIN_FILENO, &c, 1) == 1) {
-		if (iscntrl(c)) {
-			std::cout << +c << "\r\n";
-		} else {
-			std::cout << +c << " ('" << c << "')\r\n";
-		}
+	// Read the reply from standard input and store each character in buf
+	while (i < sizeof(buf) - 1) {
+		if (read(STDIN_FILENO, &buf[i], 1) != 1) break;
+		if (buf[i] == 'R') break;
+		i++;
 	}
+	buf[i] = '\0';
+
+	// Display the reply stored in buf
+	std::cout << "\r\n&buf[1]: " << &buf[1] << "\r\n";
 
 	// Call editorReadKey() to observe escape sequence before die() clears screen
 	editorReadKey();
