@@ -209,15 +209,20 @@ void editorRefreshScreen()
 {
 	struct abuf ab;
 
+	// Escape sequences start with \x1b, followed by [ and an argument
+	// before the command
+
+	// Hide the cursor with "\x1b[?25l"
+	abAppend(&ab, "\x1b[?25l", 6);
 	/* Write escape sequence to terminal to clear the screen
 	 * \x1b is the escape character (27 in decimal)
 	 * [2J is the "Erase In Display" command with argument 2,
-	 * which clears the entire screen
-	 * Escape sequences start with \x1b, followed by [ and an argument
-	 * before the command */
+	 * which clears the entire screen */
 	abAppend(&ab, "\x1b[2J", 4);
 	// Write \x1b[H to position the cursor at top-left (1,1), default for 'H'
 	abAppend(&ab, "\x1b[H", 3);
+	// Show the cursor with "\x1b[?25h"
+	abAppend(&ab, "\x1b[?25h", 6);
 
 	editorDrawRows(&ab);
 
