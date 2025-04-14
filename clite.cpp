@@ -1,4 +1,6 @@
 #include <cctype>
+#include <cerrno>
+#include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <termios.h>
@@ -6,18 +8,33 @@
 
 struct termios orig_termios;
 
+void die(const char *s)
+{
+	// Prints a descriptive error message for global errno variable along with 's'
+	perror(s);
+	// Without using perror; Using strerror from "cstring"
+	// if (s != NULL) {
+	// 	std::cerr << s << ": " << strerror(errno) << "\n";
+	// }
+	exit(1);
+}
+
 void disableRawMode()
 {
 	// Set terminal attributes using the modified struct
 	// TCSAFLUSH argument specifies waits for all pending output to be written
 	// to terminal and discards any input that hasn't been read
-	tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+	// tcsetattr() returns -1 on failure, handle that using die()
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1)
+		die("tcsetattr");
 }
 
 void enableRawMode()
 {
 	// Fetch and store the current attributes into 'orig_termios'
-	tcgetattr(STDIN_FILENO, &orig_termios);
+	// tcgetattr() returns -1 on failure, handle that using die()
+	if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) die("tcgetattr");
+
 	// Automatically call disableRawMode() when the program exits
 	atexit(disableRawMode);
 
@@ -57,7 +74,8 @@ void enableRawMode()
 	// Set terminal attributes using the modified struct
 	// TCSAFLUSH argument specifies waits for all pending output to be written
 	// to terminal and discards any input that hasn't been read
-	tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+	// tcsetattr() returns -1 on failure, handle that using die()
+	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");
 }
 
 
@@ -68,7 +86,8 @@ int main()
 	// Keep reading single character from STDIN until 'q' is read
 	while (1) {
 		char c = '\0';
-		read(STDIN_FILENO, &c, 1);
+		// In Cygwin, read() returns -1 on timeout with EAGAIN, not treated as error
+		if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) die("read");
 		if (iscntrl(c)) {
 			std::cout << +c << "\r\n";
 		} else {
