@@ -122,20 +122,19 @@ int getCursorPosition(int *rows, int *cols)
 	// Send \x1b[6n to query terminal for cursor position (n: Device Status Report)
 	if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) return -1;
 
-	// Read the reply from standard input and store each character in buf
+	// Read the reply from standard input and store each character in buf until 'R'
 	while (i < sizeof(buf) - 1) {
 		if (read(STDIN_FILENO, &buf[i], 1) != 1) break;
 		if (buf[i] == 'R') break;
 		i++;
 	}
+	// Null-terminate the reply stored in buf
 	buf[i] = '\0';
 
-	// Display the reply stored in buf
-	std::cout << "\r\n&buf[1]: " << &buf[1] << "\r\n";
+	if (buf[0] != '\x1b' || buf[1] != '[') return -1;
+	if (sscanf(&buf[2], "%d;%d", rows, cols) != 2) return -1;
 
-	// Call editorReadKey() to observe escape sequence before die() clears screen
-	editorReadKey();
-	return -1;
+	return 0;
 }
 
 int getWindowSize(int *rows, int *cols)
