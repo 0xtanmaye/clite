@@ -36,7 +36,8 @@ void enableRawMode()
 	// Clear ECHO attribute to disable printing user input
 	// Clear ICANON attribute to disable canonical mode (disable line-by-line)
 	// Clear ISIG attribute to disable SIGINT (Ctrl+C) and SIGTSTP (Ctrl+Z/Y)
-	raw.c_lflag &= ~(ECHO | ICANON | ISIG);
+	// Clear IEXTEN attribute to disable single character literal input (Ctrl+V/O)
+	raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
 
 	// Set terminal attributes using the modified struct
 	// TCSAFLUSH argument specifies waits for all pending output to be written
