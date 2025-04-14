@@ -48,6 +48,12 @@ void enableRawMode()
 	// Clear IEXTEN attribute to disable single character literal input (Ctrl+V/O)
 	raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
 
+	// c_cc field holds control characters, an array controlling terminal settings
+	// VMIN field sets minimum input bytes for read(); set 0 to return on any input
+	raw.c_cc[VMIN] = 0;
+	// VTIME sets read() timeout in tenths of a second; set to 1 for 100ms
+	raw.c_cc[VTIME] = 1;
+
 	// Set terminal attributes using the modified struct
 	// TCSAFLUSH argument specifies waits for all pending output to be written
 	// to terminal and discards any input that hasn't been read
@@ -59,14 +65,16 @@ int main()
 {
 	enableRawMode();
 
-	char c;
-	// Keep reading single character from Standard input until EOF
-	while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q') {
+	// Keep reading single character from STDIN until 'q' is read
+	while (1) {
+		char c = '\0';
+		read(STDIN_FILENO, &c, 1);
 		if (iscntrl(c)) {
 			std::cout << +c << "\r\n";
 		} else {
 			std::cout << +c << " ('" << c << "')" << "\r\n";
 		}
+		if (c == 'q') break;
 	}
 	return 0;
 }
