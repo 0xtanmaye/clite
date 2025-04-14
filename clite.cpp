@@ -131,6 +131,7 @@ int getCursorPosition(int *rows, int *cols)
 	// Null-terminate the reply stored in buf
 	buf[i] = '\0';
 
+	// Verify escape sequence, then parse cursor position into rows & cols
 	if (buf[0] != '\x1b' || buf[1] != '[') return -1;
 	if (sscanf(&buf[2], "%d;%d", rows, cols) != 2) return -1;
 
@@ -144,12 +145,11 @@ int getWindowSize(int *rows, int *cols)
 	// Get terminal size using ioctl() with TIOCGWINSZ request
 	// Terminal Input/Output Control Get WIN SiZe
 	// Check for erroneous return value -1 or invalid size of 0
-	if (1 || ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
 		// Move cursor to bottom-right by sending \x1b[999C (right) & \x1b[999B (down)
 		// Avoids using \x1b[999;999H due to undefined behavior off-screen
 		if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12) return -1;
 		return getCursorPosition(rows, cols);
-		return -1;
 	} else {
 		*cols = ws.ws_col;
 		*rows = ws.ws_row;
