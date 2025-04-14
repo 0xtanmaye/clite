@@ -8,6 +8,11 @@
 #include <termios.h>
 #include <unistd.h>
 
+/*** defines ***/
+
+// Clear upper 3 bits of 'k', similar to Ctrl behavior in terminal
+#define CTRL_KEY(k) ((k) & 0x01f)
+
 /*** data ***/
 
 struct termios orig_termios;
@@ -100,7 +105,7 @@ int main()
 		} else {
 			std::cout << +c << " ('" << c << "')" << "\r\n";
 		}
-		if (c == 'q') break;
+		if (c == CTRL_KEY('q')) break;
 	}
 	return 0;
 }
