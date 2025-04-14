@@ -28,13 +28,18 @@ void enableRawMode()
 	// c_iflag is for "input flags"
 	// Clear IXON attribute to disable pause (Ctrl+S) & resume (Ctrl+Q) transmission
 	// Clear ICRNL attribute to disable translation of ('\r', 13) to ('\n', 10)
-	raw.c_iflag &= ~(ICRNL | IXON);
+	// Clear BRKINT attribute to disable break condition which will send SIGINT
+	// Clear INPCK attribute to disable parity checking (not for modern terminals) 
+	// Clear ISTRIP attribute to disable clearing of 8th bit from input bytes
+	raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
 	
 	// c_oflag is for "output flags"
 	// Clear OPOST attribute to disable output translation of '\n' to '\r\n'
 	raw.c_oflag &= ~(OPOST);
 
 	// c_cflag is for "control flags"
+	// OR 'CS8' bit mask to set the character size (CS) to 8 bits per byte
+	raw.c_cflag |= (CS8);
 
 	// c_lflag is for "local flags" (miscellaneous flags)
 	// Clear ECHO attribute to disable printing user input
