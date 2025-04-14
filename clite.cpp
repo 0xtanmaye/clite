@@ -89,23 +89,43 @@ void enableRawMode()
 	if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) die("tcsetattr");
 }
 
+// Wait for one keypress and return it
+char editorReadKey()
+{
+	int nread;
+	char c;
+	// Ignore return value of read() other than 1 i.e. single keypress
+	while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
+		// In Cygwin, read() returns -1 on timeout with EAGAIN, not treated as error
+		if (nread == -1 && errno != EAGAIN) die("read");
+	}
+	return c;
+}
+
+/*** input ***/
+
+// Wait for a keypress and handle it
+void editorProcessKeypress()
+{
+	char c = editorReadKey();
+
+	switch (c) {
+		// Handle Ctrl+Q to quit
+		case CTRL_KEY('q'):
+			exit(0);
+			break;
+	}
+}
+
 /*** init ***/
 
 int main()
 {
 	enableRawMode();
 
-	// Keep reading single character from STDIN until 'q' is read
+	// Keep reading single character from STDIN
 	while (1) {
-		char c = '\0';
-		// In Cygwin, read() returns -1 on timeout with EAGAIN, not treated as error
-		if (read(STDIN_FILENO, &c, 1) == -1 && errno != EAGAIN) die("read");
-		if (iscntrl(c)) {
-			std::cout << +c << "\r\n";
-		} else {
-			std::cout << +c << " ('" << c << "')" << "\r\n";
-		}
-		if (c == CTRL_KEY('q')) break;
+		editorProcessKeypress();
 	}
 	return 0;
 }
