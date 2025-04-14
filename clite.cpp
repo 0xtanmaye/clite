@@ -198,6 +198,8 @@ void editorDrawRows(struct abuf *ab)
 	for (y = 0; y < E.screenrows; y++) {
 		abAppend(ab, "~", 1);
 
+		// Erase from the cursor to the end of the current line using "\x1b[K".
+		abAppend(ab, "\x1b[K", 3);
 		// Print cariage return and newline only if not the last row
 		if (y < E.screenrows - 1) {
 			abAppend(ab, "\r\n", 2);
@@ -214,11 +216,6 @@ void editorRefreshScreen()
 
 	// Hide the cursor with "\x1b[?25l"
 	abAppend(&ab, "\x1b[?25l", 6);
-	/* Write escape sequence to terminal to clear the screen
-	 * \x1b is the escape character (27 in decimal)
-	 * [2J is the "Erase In Display" command with argument 2,
-	 * which clears the entire screen */
-	abAppend(&ab, "\x1b[2J", 4);
 	// Write \x1b[H to position the cursor at top-left (1,1), default for 'H'
 	abAppend(&ab, "\x1b[H", 3);
 	// Show the cursor with "\x1b[?25h"
