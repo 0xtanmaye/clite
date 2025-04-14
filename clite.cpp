@@ -137,7 +137,7 @@ void editorDrawRows()
 {
 	int y;
 	// For now, just assume and draw for 24 rows
-	for (y = 0; y < 24; y++) {
+	for (y = 0; y < E.screenrows; y++) {
 		write(STDOUT_FILENO, "~\r\n", 3);
 	}
 }
