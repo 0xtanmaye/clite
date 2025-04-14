@@ -58,9 +58,9 @@ int main()
 	// Keep reading single character from Standard input until EOF
 	while (read(STDIN_FILENO, &c, 1) == 1 && c != 'q') {
 		if (iscntrl(c)) {
-			std::cout << +c << std::endl;
+			std::cout << +c << "\r\n";
 		} else {
-			std::cout << +c << " ('" << c << "')" << std::endl;
+			std::cout << +c << " ('" << c << "')" << "\r\n";
 		}
 	}
 	return 0;
