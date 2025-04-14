@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -109,6 +110,22 @@ char editorReadKey()
 		if (nread == -1 && errno != EAGAIN) die("read");
 	}
 	return c;
+}
+
+int getWindowSize(int *rows, int *cols)
+{
+	struct winsize ws;
+
+	// Get terminal size using ioctl() with TIOCGWINSZ request
+	// Terminal Input/Output Control Get WIN SiZe
+	// Check for erroneous return value -1 or invalid size of 0
+	if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
+		return -1;
+	} else {
+		*cols = ws.ws_col;
+		*rows = ws.ws_row;
+		return 0;
+	}
 }
 
 /*** output ***/
