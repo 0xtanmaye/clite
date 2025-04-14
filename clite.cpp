@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <string>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
@@ -157,38 +158,44 @@ int getWindowSize(int *rows, int *cols)
 	}
 }
 
+/*** append buffer ***/
+
+std::string abuf;
+
 /*** output ***/
 
 // Handle drawing of each row of the buffer of the text being edited
-void editorDrawRows()
+void editorDrawRows(std::string *ab)
 {
 	int y;
 	for (y = 0; y < E.screenrows; y++) {
-		write(STDOUT_FILENO, "~", 1);
+		ab->append("~");
 
 		// Print cariage return and newline only if not the last row
 		if (y < E.screenrows - 1) {
-			write(STDOUT_FILENO, "\r\n", 2);
+			ab->append("\r\n");
 		}
 	}
 }
 
 void editorRefreshScreen()
 {
+	std::string ab;
 	/* Write escape sequence to terminal to clear the screen
 	 * \x1b is the escape character (27 in decimal)
 	 * [2J is the "Erase In Display" command with argument 2,
 	 * which clears the entire screen
 	 * Escape sequences start with \x1b, followed by [ and an argument
 	 * before the command */
-	write(STDOUT_FILENO, "\x1b[2J", 4);
+	ab.append("\x1b[2J");
 	// Write \x1b[H to position the cursor at top-left (1,1), default for 'H'
-	write(STDOUT_FILENO, "\x1b[H", 3);
+	ab.append("\x1b[H");
 
-	editorDrawRows();
+	editorDrawRows(&ab);
 
 	// Again reposition cursor to top-left after drawing the rows
-	write(STDOUT_FILENO, "\x1b[H", 3);
+	ab.append("\x1b[H");
+	write(STDOUT_FILENO, ab.c_str(), ab.length());
 }
 
 /*** input ***/
