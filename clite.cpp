@@ -205,6 +205,16 @@ void editorDrawRows(struct abuf *ab)
 					"CLiTE editor -- version %s", CLITE_VERSION);
 			// Truncate length of the string if terminal size is too small
 			if (welcomelen > E.screencols) welcomelen = E.screencols;
+			// Calculate how far from the left should the welcome message start
+			int padding = (E.screencols - welcomelen ) / 2;
+			// Print the first character as tilde ('~')
+			if (padding) {
+				abAppend(ab, "~", 1);
+				padding--;
+			}
+			// Fill the remaining space with space characters (' ')
+			while (padding--) abAppend(ab, " ", 1);
+
 			abAppend(ab, welcome, welcomelen);
 		} else {
 			abAppend(ab, "~", 1);
