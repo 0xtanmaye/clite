@@ -458,11 +458,23 @@ void editorDrawRows(struct abuf *ab)
 
 		// Erase from the cursor to the end of the current line using "\x1b[K".
 		abAppend(ab, "\x1b[K", 3);
-		// Print cariage return and newline only if not the last row
-		if (y < E.screenrows - 1) {
-			abAppend(ab, "\r\n", 2);
-		}
+
+		abAppend(ab, "\r\n", 2);
 	}
+}
+
+void editorDrawStatusBar(struct abuf *ab)
+{
+	// <esc>[7m switches to inverted colors (white text on white background)
+	abAppend(ab, "\x1b[7m", 4);
+	int len = 0;
+	while (len < E.screencols) {
+		abAppend(ab, " ", 1);
+		len++;
+	}
+
+	// <esc>[m switches back to normal formatting.
+	abAppend(ab, "\x1b[m", 3);
 }
 
 void editorRefreshScreen()
@@ -480,6 +492,7 @@ void editorRefreshScreen()
 	abAppend(&ab, "\x1b[H", 3);
 
 	editorDrawRows(&ab);
+	editorDrawStatusBar(&ab);
 
 	char buf[32];
 	// Modified H command to move cursor to (1-indexed) position
@@ -497,7 +510,8 @@ void editorRefreshScreen()
 
 /*** input ***/
 
-void editorMoveCursor(int key) {
+void editorMoveCursor(int key)
+{
 	// Get the current row or allow the cursor to be one past the last line
 	erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
 	switch (key) {
@@ -605,6 +619,8 @@ void initEditor()
 	E.row = NULL;
 
 	if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
+	// Decrement E.screenrows to make room for status line; final line drawn 
+	E.screenrows -= 1;
 }
 
 int main(int argc, char *argv[])
