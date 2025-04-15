@@ -21,7 +21,9 @@ enum editorKey {
 	ARROW_LEFT = 1000,
 	ARROW_RIGHT,
 	ARROW_UP,
-	ARROW_DOWN
+	ARROW_DOWN,
+	PAGE_UP,
+	PAGE_DOWN
 };
 
 /*** data ***/
@@ -133,12 +135,24 @@ int editorReadKey()
 
 		// If the first byte is '[' then it's an escape sequence
 		if (seq[0] == '[') {
-			// Check for arrow key escape sequence
-			switch (seq[1]) {
-				case 'A': return ARROW_UP;
-				case 'B': return ARROW_DOWN;
-				case 'C': return ARROW_RIGHT;
-				case 'D': return ARROW_LEFT;
+			// Handle Page Up/Down keys (<esc>[5~ / <esc>[6~)
+			if (seq[1] >= '0' && seq[1] <= '9') {
+				if (read(STDIN_FILENO, &seq[2], 1) != 1) return '\x1b';
+				// Check for '~' at the end of the escape sequence to confirm PAGE UP/DOWN
+				if (seq[2] == '~') {
+					switch (seq[1]) {
+						case '5': return PAGE_UP;
+						case '6': return PAGE_DOWN;
+					}
+				}
+			} else {
+				// Check for arrow key escape sequence
+				switch (seq[1]) {
+					case 'A': return ARROW_UP;
+					case 'B': return ARROW_DOWN;
+					case 'C': return ARROW_RIGHT;
+					case 'D': return ARROW_LEFT;
+				}
 			}
 		}
 		// If the escape sequence is not recognized, return the Esc character
@@ -325,6 +339,17 @@ void editorProcessKeypress()
 			write(STDOUT_FILENO, "\x1b[2J", 4);
 			write(STDOUT_FILENO, "\x1b[H", 3);
 			exit(0);
+			break;
+
+		case PAGE_UP:
+		case PAGE_DOWN:
+			// For now make PAGE UP/DOWN move the cursor to the top/bottom of the screen
+			// The code is written in braces to allow creation of times variable
+			{
+				int times = E.screenrows;
+				while (times--)
+					editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+			}
 			break;
 
 		case ARROW_UP:
