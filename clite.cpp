@@ -335,7 +335,8 @@ void editorDrawRows(struct abuf *ab)
 	for (y = 0; y < E.screenrows; y++) {
 		// Check if drawing a row within the text buffer or after its end
 		if (y >= E.numrows) {
-			if (y == E.screenrows / 3) {
+			// Display welcome message only if the text buffer is empty
+			if (E.numrows == 0 && y == E.screenrows / 3) {
 				char welcome[80];
 				// Store the message in welcome buffer by interpolating the editor version
 				int welcomelen = snprintf(welcome, sizeof(welcome), 
