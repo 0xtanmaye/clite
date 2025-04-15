@@ -18,6 +18,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+
 /*** defines ***/
 
 #define CLITE_VERSION "0.0.1"
@@ -26,7 +27,8 @@
 // Clear upper 3 bits of 'k', similar to Ctrl behavior in terminal
 #define CTRL_KEY(k) ((k) & 0x01f)
 
-enum editorKey {
+enum editorKey
+{
 	ARROW_LEFT = 1000,
 	ARROW_RIGHT,
 	ARROW_UP,
@@ -37,6 +39,7 @@ enum editorKey {
 	PAGE_UP,
 	PAGE_DOWN
 };
+
 
 /*** data ***/
 
@@ -67,6 +70,7 @@ struct editorConfig
 };
 
 struct editorConfig E;
+
 
 /*** terminal ***/
 
@@ -248,6 +252,7 @@ int getWindowSize(int *rows, int *cols)
 	}
 }
 
+
 /*** row operations ***/
 
 int editorRowCxToRx(erow *row, int cx)
@@ -292,8 +297,7 @@ void editorUpdateRow(erow *row)
 	row->rsize = idx;
 }
 
-
-void editorAppendRow(char *s, size_t len)
+void editorAppendRow(const char *s, size_t len)
 {
 	// Reallocate memory for E.row to accommodate one more erow
 	E.row = (erow*) realloc(E.row, sizeof(erow) * (E.numrows + 1));
@@ -310,6 +314,35 @@ void editorAppendRow(char *s, size_t len)
 	editorUpdateRow(&E.row[at]);
 
 	E.numrows++;
+}
+
+void editorRowInsertChar(erow *row, int at, int c)
+{
+	// Clamp 'at' to be within [0, row->size], allowing insert at end of row
+	if (at < 0 || at > row->size) at = row->size;
+	// Resize row, shift chars to make room, insert new char, and update render
+	row->chars = (char*) realloc(row->chars, row->size + 2);
+	// Like memcpy but allows overlap of source & destination
+	memmove(&row->chars[at + 1], &row->chars[at], row->size - at + 1);
+	row->size++;
+	row->chars[at] = c;
+	editorUpdateRow(row);
+}
+
+
+/*** editor operations ***/
+
+void editorInsertChar(int c)
+{
+	// If cursor is past the last row, append a new empty row first
+	if (E.cy == E.numrows) {
+		editorAppendRow("", 0);
+	}
+
+	// Insert the character at the current cursor position
+	editorRowInsertChar(&E.row[E.cy], E.cx, c);
+	// Move cursor forward after insertion
+	E.cx++;
 }
 
 
@@ -392,6 +425,7 @@ void abAppend(struct abuf *ab, const char *s, int len)
 	ab->b = newb;
 	ab->len += len;
 }
+
 
 /*** output ***/
 
@@ -562,6 +596,7 @@ void editorSetStatusMessage(const char *fmt, ...)
 	E.statusmsg_time = time(NULL);
 }
 
+
 /*** input ***/
 
 void editorMoveCursor(int key)
@@ -657,8 +692,13 @@ void editorProcessKeypress()
 		case ARROW_RIGHT:
 			editorMoveCursor(c);
 			break;
+
+		default:
+			editorInsertChar(c);
+			break;
 	}
 }
+
 
 /*** init ***/
 
