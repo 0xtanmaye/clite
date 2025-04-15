@@ -441,6 +441,8 @@ void editorRefreshScreen()
 /*** input ***/
 
 void editorMoveCursor(int key) {
+	// Get the current row or allow the cursor to be one past the last line
+	erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
 	switch (key) {
 		case ARROW_LEFT:
 			if (E.cx != 0) {
@@ -448,8 +450,10 @@ void editorMoveCursor(int key) {
 			}
 			break;
 		case ARROW_RIGHT:
-			// Allow scrolling past right edge
-			E.cx++;
+			// Move cursor right if within the current line's length, allowing one past
+			if (row && E.cx < row->size) {
+				E.cx++;
+			}
 			break;
 		case ARROW_UP:
 			if (E.cy != 0) {
