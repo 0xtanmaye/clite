@@ -48,6 +48,7 @@ struct erow
 struct editorConfig
 {
 	int cx, cy;
+	int rowoff;
 	int screenrows;
 	int screencols;
 	int numrows;
@@ -333,13 +334,27 @@ void abAppend(struct abuf *ab, const char *s, int len)
 
 /*** output ***/
 
+void editorScroll()
+{
+	// Scroll up if the cursor is above the visible window (set E.rowoff to E.cy)
+	if (E.cy < E.rowoff) {
+		E.rowoff = E.cy;
+	}
+
+	// Scroll down if the cursor is below the visible window
+	if (E.cy >= E.rowoff + E.screenrows) {
+		E.rowoff = E.cy - E.screenrows + 1;
+	}
+}
+
 // Handle drawing of each row of the buffer of the text being edited
 void editorDrawRows(struct abuf *ab)
 {
 	int y;
 	for (y = 0; y < E.screenrows; y++) {
+		int filerow = y + E.rowoff;
 		// Check if drawing a row within the text buffer or after its end
-		if (y >= E.numrows) {
+		if (filerow >= E.numrows) {
 			// Display welcome message only if the text buffer is empty
 			if (E.numrows == 0 && y == E.screenrows / 3) {
 				char welcome[80];
@@ -363,11 +378,11 @@ void editorDrawRows(struct abuf *ab)
 				abAppend(ab, "~", 1);
 			}
 		} else {
-			int len = E.row[y].size;
+			int len = E.row[filerow].size;
 			// Truncate rendered line if it exceeds the screen width
 			if (len > E.screencols) len = E.screencols;
 			// Draw row by writing out the chars field of the erow
-			abAppend(ab, E.row[y].chars, len);
+			abAppend(ab, E.row[filerow].chars, len);
 		}
 
 
@@ -382,6 +397,8 @@ void editorDrawRows(struct abuf *ab)
 
 void editorRefreshScreen()
 {
+	editorScroll();
+
 	struct abuf ab;
 
 	// Escape sequences start with \x1b, followed by [ and an argument
@@ -396,7 +413,8 @@ void editorRefreshScreen()
 
 	char buf[32];
 	// Modified H command to move cursor to (1-indexed) position
-	snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cy + 1, E.cx + 1);
+	// Adjust cursor on screen by subtracting E.rowoff, as E.cy is now file pos
+	snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, E.cx + 1);
 	abAppend(&ab, buf, strlen(buf));
 
 	// Show the cursor with "\x1b[?25h"
@@ -426,7 +444,7 @@ void editorMoveCursor(int key) {
 			}
 			break;
 		case ARROW_DOWN:
-			if (E.cy != E.screenrows - 1) {
+			if (E.cy < E.numrows) {
 				E.cy++;
 			}
 			break;
@@ -481,6 +499,7 @@ void initEditor()
 {
 	E.cx = 0;
 	E.cy = 0;
+	E.rowoff = 0;
 	E.numrows = 0;
 	E.row = NULL;
 
