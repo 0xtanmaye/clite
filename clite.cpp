@@ -1,10 +1,15 @@
 /*** includes ***/
 
+// Define feature test macros before includes to ensure portability.
+#define _DEFAULT_SOURCE
+#define _BSD_SOURCE
+
 #include <cctype>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+// #include <fstream>
 #include <iostream>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -33,6 +38,7 @@ enum editorKey {
 /*** data ***/
 
 // erow - Editor row
+// TOOD: Implement using std::string/vector if possible
 struct erow
 {
 	int size;
@@ -233,21 +239,64 @@ int getWindowSize(int *rows, int *cols)
 
 /*** file i/o ***/
 
-void editorOpen()
+/* Using fstream (C++ version)
+void editorOpen(const char* filename)
 {
-	const char *line = "Hello, world";
-	ssize_t linelen = 13;
+	std::ifstream file(filename);
+	if (!file.is_open()) {
+		die("fopen");
+	}
 
-	E.row.size = linelen;
-	E.row.chars = (char *) malloc(linelen + 1);
-	memcpy(E.row.chars, line, linelen);
-	E.row.chars[linelen] = '\0';
-	E.numrows = 1;
+	std::string line;
+	if (std::getline(file, line)) {
+		// Strip trailing newline and carriage return characters
+		while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
+			line.pop_back();
+		}
+
+		size_t linelen = line.length();
+		E.row.chars = (char*) malloc(linelen + 1);
+		memcpy(E.row.chars, line.c_str(), linelen);
+		E.row.chars[linelen] = '\0';
+		E.row.size = linelen;
+		E.numrows = 1;
+	}
+
+	file.close();
+}
+*/
+
+void editorOpen(char *filename)
+{
+	FILE *fp = fopen(filename, "r");
+	if (!fp) die("fopen");
+
+	char *line = NULL;
+	size_t linecap = 0;
+	ssize_t linelen;
+	// Automatically allocates memory for line read when pointer is NULL & cap=0
+	// getline() returns the length of the line read or -1 when reached EOF
+	linelen = getline(&line, &linecap, fp);
+	if (linelen != -1) {
+		// Strip trailing newline and carriage return characters
+		while (linelen > 0 && (line[linelen - 1] == '\n' ||
+					line[linelen - 1] == '\r'))
+			linelen--;
+
+		E.row.size = linelen;
+		E.row.chars = (char*) malloc(linelen + 1);
+		memcpy(E.row.chars, line, linelen);
+		E.row.chars[linelen] = '\0';
+		E.numrows = 1;
+	}
+	free(line);
+	fclose(fp);
 }
 
 
 /*** append buffer ***/
 
+// TODO: Implement the append buffer using std::string/vector if possible
 struct abuf
 {
 	char *b;
@@ -267,7 +316,7 @@ struct abuf
 void abAppend(struct abuf *ab, const char *s, int len)
 {
 	// Realloc to with original length + length of string to be appended
-	char *newb = (char *) realloc(ab->b, ab->len + len);
+	char *newb = (char*) realloc(ab->b, ab->len + len);
 
 	if (newb == NULL) return;
 	// Copy the string at the end of current data in buffer
@@ -431,11 +480,13 @@ void initEditor()
 	if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
 }
 
-int main()
+int main(int argc, char *argv[])
 {
 	enableRawMode();
 	initEditor();
-	editorOpen();
+	if (argc >=2) {
+		editorOpen(argv[1]);
+	}
 
 	// Keep reading single character from STDIN
 	while (1) {
