@@ -51,6 +51,7 @@ struct erow
 struct editorConfig
 {
 	int cx, cy;
+	int rx;
 	int rowoff;
 	int coloff;
 	int screenrows;
@@ -244,6 +245,21 @@ int getWindowSize(int *rows, int *cols)
 
 /*** row operations ***/
 
+int editorRowCxToRx(erow *row, int cx)
+{
+	int rx = 0;
+	// Loop through characters up to cx
+	for (int j = 0; j < cx; j++) {
+		// If tab, calculate space to next tab stop
+		if (row->chars[j] == '\t')
+			rx += (CLITE_TAB_STOP - 1) - (rx % CLITE_TAB_STOP);
+		// Increment for regular character
+		rx++;
+	}
+	// Return final render position
+	return rx;
+}
+
 void editorUpdateRow(erow *row)
 {
 	int tabs = 0;
@@ -373,6 +389,11 @@ void abAppend(struct abuf *ab, const char *s, int len)
 
 void editorScroll()
 {
+	E.rx = 0;
+	if (E.cy < E.numrows) {
+		E.rx = editorRowCxToRx(&E.row[E.cy], E.cx);
+	}
+
 	// Scroll up if the cursor is above the visible window (set E.rowoff to E.cy)
 	if (E.cy < E.rowoff) {
 		E.rowoff = E.cy;
@@ -384,13 +405,13 @@ void editorScroll()
 	}
 
 	// Scroll left if the cursor is beyond the left edge of the visible window
-	if (E.cx < E.coloff) {
-		E.coloff = E.cx;
+	if (E.rx < E.coloff) {
+		E.coloff = E.rx;
 	}
 
 	// Scroll right if the cursor is beyond the right edge of the visible window
-	if (E.cx >= E.coloff + E.screencols) {
-		E.coloff = E.cx - E.screencols + 1;
+	if (E.rx >= E.coloff + E.screencols) {
+		E.coloff = E.rx - E.screencols + 1;
 	}
 }
 
@@ -464,7 +485,7 @@ void editorRefreshScreen()
 	// Modified H command to move cursor to (1-indexed) position
 	// Adjust cursor on screen by subtracting E.rowoff, as E.cy is now file pos
 	// Adjust cursor on screen by subtracting E.coloff, as E.cx is now file pos
-	snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, (E.cx - E.coloff) + 1);
+	snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, (E.rx - E.coloff) + 1);
 	abAppend(&ab, buf, strlen(buf));
 
 	// Show the cursor with "\x1b[?25h"
@@ -568,6 +589,7 @@ void initEditor()
 {
 	E.cx = 0;
 	E.cy = 0;
+	E.rx = 0;
 	E.rowoff = 0;
 	E.coloff = 0;
 	E.numrows = 0;
