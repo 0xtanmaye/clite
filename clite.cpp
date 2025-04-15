@@ -29,6 +29,8 @@
 
 enum editorKey
 {
+	// Backspace has no printable escape sequence like '\n' or '\r'
+	BACKSPACE = 127,
 	ARROW_LEFT = 1000,
 	ARROW_RIGHT,
 	ARROW_UP,
@@ -644,12 +646,16 @@ void editorMoveCursor(int key)
 	}
 }
 
-// Wait for a keypress and handle it
 void editorProcessKeypress()
 {
 	int c = editorReadKey();
 
 	switch (c) {
+		// Handle '\r' (Enter key)
+		case '\r':
+			/* TODO */
+			break;
+
 		// Handle Ctrl+Q to quit
 		case CTRL_KEY('q'):
 			// Clear the screen and reposition the cursor on exit
@@ -666,6 +672,13 @@ void editorProcessKeypress()
 		case END_KEY:
 			if (E.cy < E.numrows)
 				E.cx = E.row[E.cy].size;
+			break;
+
+		// Handle Backspace (127), Ctrl-H (8) (Old Backspace), and Delete (ESC[3~)
+		case BACKSPACE:
+		case CTRL_KEY('h'):
+		case DEL_KEY:
+			/* TODO */
 			break;
 
 		case PAGE_UP:
@@ -691,6 +704,11 @@ void editorProcessKeypress()
 		case ARROW_LEFT:
 		case ARROW_RIGHT:
 			editorMoveCursor(c);
+			break;
+
+		// Ignore Ctrl-L and Esc; screen already refreshes, and Esc avoids unwanted input
+		case CTRL_KEY('l'):
+		case '\x1b':
 			break;
 
 		default:
