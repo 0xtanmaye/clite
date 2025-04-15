@@ -6,9 +6,11 @@
 
 #include <cctype>
 #include <cerrno>
+#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 // #include <fstream>
 #include <iostream>
 #include <sys/ioctl.h>
@@ -59,6 +61,8 @@ struct editorConfig
 	int numrows;
 	erow *row;
 	char *filename;
+	char statusmsg[80];
+	time_t statusmsg_time;
 	struct termios orig_termios;
 };
 
@@ -498,6 +502,22 @@ void editorDrawStatusBar(struct abuf *ab)
 
 	// <esc>[m switches back to normal formatting.
 	abAppend(ab, "\x1b[m", 3);
+
+	// Add new line after status bar to make room for status msg
+	abAppend(ab, "\r\n", 2);
+}
+
+void editorDrawMessageBar(struct abuf *ab)
+{
+	// Clear the message bar with the <esc>[K
+	abAppend(ab, "\x1b[K", 3);
+	int msglen = strlen(E.statusmsg);
+	// Make sure the message will fit the width of the screen
+	if (msglen > E.screencols) msglen = E.screencols;
+
+	// Display the message, but only if the message is less than 5 seconds old
+	if (msglen && time(NULL) - E.statusmsg_time < 5)
+		abAppend(ab, E.statusmsg, msglen);
 }
 
 void editorRefreshScreen()
@@ -516,6 +536,7 @@ void editorRefreshScreen()
 
 	editorDrawRows(&ab);
 	editorDrawStatusBar(&ab);
+	editorDrawMessageBar(&ab);
 
 	char buf[32];
 	// Modified H command to move cursor to (1-indexed) position
@@ -529,6 +550,16 @@ void editorRefreshScreen()
 
 	// Write the contents of append buffer to screen once
 	write(STDOUT_FILENO, ab.b, ab.len);
+}
+
+void editorSetStatusMessage(const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(E.statusmsg, sizeof(E.statusmsg), fmt, ap);
+	va_end(ap);
+	// Get current time by passing NULL to time() (Unix time)
+	E.statusmsg_time = time(NULL);
 }
 
 /*** input ***/
@@ -641,10 +672,14 @@ void initEditor()
 	E.numrows = 0;
 	E.row = NULL;
 	E.filename = NULL;
+	// E.statusmsg is empty string, so no message displayed by default
+	E.statusmsg[0] = '\0';
+	E.statusmsg_time = 0;
+
 
 	if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
-	// Decrement E.screenrows to make room for status line; final line drawn 
-	E.screenrows -= 1;
+	// Decrement E.screenrows to make room for status bar and status msg
+	E.screenrows -= 2;
 }
 
 int main(int argc, char *argv[])
@@ -655,6 +690,7 @@ int main(int argc, char *argv[])
 		editorOpen(argv[1]);
 	}
 
+	editorSetStatusMessage("HELP: Ctrl-Q = quit");
 	// Keep reading single character from STDIN
 	while (1) {
 		editorRefreshScreen();
