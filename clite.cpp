@@ -49,6 +49,7 @@ struct editorConfig
 {
 	int cx, cy;
 	int rowoff;
+	int coloff;
 	int screenrows;
 	int screencols;
 	int numrows;
@@ -345,6 +346,16 @@ void editorScroll()
 	if (E.cy >= E.rowoff + E.screenrows) {
 		E.rowoff = E.cy - E.screenrows + 1;
 	}
+
+	// Scroll left if the cursor is beyond the left edge of the visible window
+	if (E.cx < E.coloff) {
+		E.coloff = E.cx;
+	}
+
+	// Scroll right if the cursor is beyond the right edge of the visible window
+	if (E.cx >= E.coloff + E.screencols) {
+		E.coloff = E.cx - E.screencols + 1;
+	}
 }
 
 // Handle drawing of each row of the buffer of the text being edited
@@ -378,11 +389,13 @@ void editorDrawRows(struct abuf *ab)
 				abAppend(ab, "~", 1);
 			}
 		} else {
-			int len = E.row[filerow].size;
+			// Calculate and append the visible portion of the row after column offset
+			int len = E.row[filerow].size - E.coloff;
+			if (len < 0) len = 0;
 			// Truncate rendered line if it exceeds the screen width
 			if (len > E.screencols) len = E.screencols;
 			// Draw row by writing out the chars field of the erow
-			abAppend(ab, E.row[filerow].chars, len);
+			abAppend(ab, &E.row[filerow].chars[E.coloff], len);
 		}
 
 
@@ -414,7 +427,8 @@ void editorRefreshScreen()
 	char buf[32];
 	// Modified H command to move cursor to (1-indexed) position
 	// Adjust cursor on screen by subtracting E.rowoff, as E.cy is now file pos
-	snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, E.cx + 1);
+	// Adjust cursor on screen by subtracting E.coloff, as E.cx is now file pos
+	snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, (E.cx - E.coloff) + 1);
 	abAppend(&ab, buf, strlen(buf));
 
 	// Show the cursor with "\x1b[?25h"
@@ -434,9 +448,8 @@ void editorMoveCursor(int key) {
 			}
 			break;
 		case ARROW_RIGHT:
-			if (E.cx != E.screencols - 1) {
-				E.cx++;
-			}
+			// Allow scrolling past right edge
+			E.cx++;
 			break;
 		case ARROW_UP:
 			if (E.cy != 0) {
@@ -444,6 +457,7 @@ void editorMoveCursor(int key) {
 			}
 			break;
 		case ARROW_DOWN:
+			// Allow scrolling past bottom of the screen but within the file
 			if (E.cy < E.numrows) {
 				E.cy++;
 			}
@@ -500,6 +514,7 @@ void initEditor()
 	E.cx = 0;
 	E.cy = 0;
 	E.rowoff = 0;
+	E.coloff = 0;
 	E.numrows = 0;
 	E.row = NULL;
 
