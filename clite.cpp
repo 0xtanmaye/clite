@@ -17,6 +17,13 @@
 // Clear upper 3 bits of 'k', similar to Ctrl behavior in terminal
 #define CTRL_KEY(k) ((k) & 0x01f)
 
+enum editorKey {
+	ARROW_LEFT = 1000,
+	ARROW_RIGHT,
+	ARROW_UP,
+	ARROW_DOWN
+};
+
 /*** data ***/
 
 struct editorConfig
@@ -106,7 +113,7 @@ void enableRawMode()
 }
 
 // Wait for one keypress and return it
-char editorReadKey()
+int editorReadKey()
 {
 	int nread;
 	char c;
@@ -128,10 +135,10 @@ char editorReadKey()
 		if (seq[0] == '[') {
 			// Check for arrow key escape sequence
 			switch (seq[1]) {
-				case 'A': return 'w';
-				case 'B': return 's';
-				case 'C': return 'd';
-				case 'D': return 'a';
+				case 'A': return ARROW_UP;
+				case 'B': return ARROW_DOWN;
+				case 'C': return ARROW_RIGHT;
+				case 'D': return ARROW_LEFT;
 			}
 		}
 		// If the escape sequence is not recognized, return the Esc character
@@ -281,18 +288,18 @@ void editorRefreshScreen()
 
 /*** input ***/
 
-void editorMoveCursor(char key) {
+void editorMoveCursor(int key) {
 	switch (key) {
-		case 'a':
+		case ARROW_LEFT:
 			E.cx--;
 			break;
-		case 'd':
+		case ARROW_RIGHT:
 			E.cx++;
 			break;
-		case 'w':
+		case ARROW_UP:
 			E.cy--;
 			break;
-		case 's':
+		case ARROW_DOWN:
 			E.cy++;
 			break;
 	}
@@ -301,7 +308,7 @@ void editorMoveCursor(char key) {
 // Wait for a keypress and handle it
 void editorProcessKeypress()
 {
-	char c = editorReadKey();
+	int c = editorReadKey();
 
 	switch (c) {
 		// Handle Ctrl+Q to quit
@@ -312,10 +319,10 @@ void editorProcessKeypress()
 			exit(0);
 			break;
 
-		case 'w':
-		case 'a':
-		case 's':
-		case 'd':
+		case ARROW_UP:
+		case ARROW_DOWN:
+		case ARROW_LEFT:
+		case ARROW_RIGHT:
 			editorMoveCursor(c);
 			break;
 	}
