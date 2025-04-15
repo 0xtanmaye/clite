@@ -42,7 +42,9 @@ enum editorKey {
 struct erow
 {
 	int size;
+	int rsize;
 	char *chars;
+	char *render;
 };
 
 struct editorConfig
@@ -241,6 +243,20 @@ int getWindowSize(int *rows, int *cols)
 
 /*** row operations ***/
 
+void editorUpdateRow(erow *row)
+{
+	free(row->render);
+	row->render = malloc(row->size + 1);
+	int j;
+	int idx = 0;
+	for (j = 0; j < row->size; j++) {
+		row->render[idx++] = row->chars[j];
+	}
+	row->render[idx] = '\0';
+	row->rsize = idx;
+}
+
+
 void editorAppendRow(char *s, size_t len)
 {
 	// Reallocate memory for E.row to accommodate one more erow
@@ -252,6 +268,11 @@ void editorAppendRow(char *s, size_t len)
 	E.row[at].chars = (char*) malloc(len + 1);
 	memcpy(E.row[at].chars, s, len);
 	E.row[at].chars[len] = '\0';
+
+	E.row[at].rsize = 0;
+	E.row[at].render = NULL;
+	editorUpdateRow(&E.row[at]);
+
 	E.numrows++;
 }
 
@@ -390,12 +411,12 @@ void editorDrawRows(struct abuf *ab)
 			}
 		} else {
 			// Calculate and append the visible portion of the row after column offset
-			int len = E.row[filerow].size - E.coloff;
+			int len = E.row[filerow].rsize - E.coloff;
 			if (len < 0) len = 0;
 			// Truncate rendered line if it exceeds the screen width
 			if (len > E.screencols) len = E.screencols;
 			// Draw row by writing out the chars field of the erow
-			abAppend(ab, &E.row[filerow].chars[E.coloff], len);
+			abAppend(ab, &E.row[filerow].render[E.coloff], len);
 		}
 
 
