@@ -467,6 +467,13 @@ void editorMoveCursor(int key) {
 			}
 			break;
 	}
+
+	// Correct E.cx if it’s past the end of the current line after moving down
+	row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+	int rowlen = row ? row->size: 0;
+	if (E.cx > rowlen) {
+		E.cx = rowlen;
+	}
 }
 
 // Wait for a keypress and handle it
