@@ -115,7 +115,30 @@ char editorReadKey()
 		// In Cygwin, read() returns -1 on timeout with EAGAIN, not treated as error
 		if (nread == -1 && errno != EAGAIN) die("read");
 	}
-	return c;
+
+	// If an escape character is read
+	if (c == '\x1b') {
+		// 'seq' buffer is 3 bytes long to support longer escape sequences in future
+		char seq[3];
+		// Try to read two more bytes, if reads time out then assume user pressed Esc
+		if (read(STDIN_FILENO, &seq[0], 1) != 1) return '\x1b';
+		if (read(STDIN_FILENO, &seq[1], 1) != 1) return '\x1b';
+
+		// If the first byte is '[' then it's an escape sequence
+		if (seq[0] == '[') {
+			// Check for arrow key escape sequence
+			switch (seq[1]) {
+				case 'A': return 'w';
+				case 'B': return 's';
+				case 'C': return 'd';
+				case 'D': return 'a';
+			}
+		}
+		// If the escape sequence is not recognized, return the Esc character
+		return '\x1b';
+	} else {
+		return c;
+	}
 }
 
 int getCursorPosition(int *rows, int *cols)
