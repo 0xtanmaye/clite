@@ -241,11 +241,16 @@ int getWindowSize(int *rows, int *cols)
 
 void editorAppendRow(char *s, size_t len)
 {
-	E.row.size = len;
-	E.row.chars = (char*) malloc(len + 1);
-	memcpy(E.row.chars, s, len);
-	E.row.chars[len] = '\0';
-	E.numrows = 1;
+	// Reallocate memory for E.row to accommodate one more erow
+	E.row = (erow*) realloc(E.row, sizeof(erow) * (E.numrows + 1));
+
+	// Set 'at' to the new row index
+	int at = E.numrows;
+	E.row[at].size = len;
+	E.row[at].chars = (char*) malloc(len + 1);
+	memcpy(E.row[at].chars, s, len);
+	E.row[at].chars[len] = '\0';
+	E.numrows++;
 }
 
 
@@ -260,12 +265,12 @@ void editorOpen(const char* filename)
 	}
 
 	std::string line;
-	if (std::getline(file, line)) {
+	while (std::getline(file, line)) {
 		// Strip trailing newline and carriage return characters
 		while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
 			line.pop_back();
 		}
-		editorAppendRow(line.c_str(), line.length);
+		editorAppendRow((char*) line.c_str(), line.length());
 	}
 
 	file.close();
@@ -282,15 +287,12 @@ void editorOpen(char *filename)
 	ssize_t linelen;
 	// Automatically allocates memory for line read when pointer is NULL & cap=0
 	// getline() returns the length of the line read or -1 when reached EOF
-	linelen = getline(&line, &linecap, fp);
-	if (linelen != -1) {
+	while ((linelen = getline(&line, &linecap, fp)) != -1) {
 		// Strip trailing newline and carriage return characters
 		while (linelen > 0 && (line[linelen - 1] == '\n' ||
 					line[linelen - 1] == '\r'))
 			linelen--;
 		editorAppendRow(line, linelen);
-
-		
 	}
 	free(line);
 	fclose(fp);
@@ -361,11 +363,11 @@ void editorDrawRows(struct abuf *ab)
 				abAppend(ab, "~", 1);
 			}
 		} else {
-			int len = E.row.size;
+			int len = E.row[y].size;
 			// Truncate rendered line if it exceeds the screen width
 			if (len > E.screencols) len = E.screencols;
 			// Draw row by writing out the chars field of the erow
-			abAppend(ab, E.row.chars, len);
+			abAppend(ab, E.row[y].chars, len);
 		}
 
 
