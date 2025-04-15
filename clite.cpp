@@ -19,6 +19,7 @@
 /*** defines ***/
 
 #define CLITE_VERSION "0.0.1"
+#define CLITE_TAB_STOP 8
 
 // Clear upper 3 bits of 'k', similar to Ctrl behavior in terminal
 #define CTRL_KEY(k) ((k) & 0x01f)
@@ -245,12 +246,26 @@ int getWindowSize(int *rows, int *cols)
 
 void editorUpdateRow(erow *row)
 {
-	free(row->render);
-	row->render = malloc(row->size + 1);
+	int tabs = 0;
 	int j;
+	// Count tabs and allocate memory for render adding 7 chars per tab
+	for (j = 0; j < row->size; j++)
+		if (row->chars[j] == '\t') tabs++;
+
+	free(row->render);
+	// since row->size counts 1 for each tab, we add 7 extra chars for each tab).
+	row->render = (char*) malloc(row->size + tabs * (CLITE_TAB_STOP - 1) + 1);
+
 	int idx = 0;
 	for (j = 0; j < row->size; j++) {
-		row->render[idx++] = row->chars[j];
+		// Modify the loop to handle tabs: append one space for the tab, then fill
+		// with spaces until reaching the next tab stop (multiple of 8 columns).
+		if (row->chars[j] == '\t') {
+			row->render[idx++] = ' ';
+			while (idx % CLITE_TAB_STOP != 0) row->render[idx++] = ' ';
+		} else {
+			row->render[idx++] = row->chars[j];
+		}
 	}
 	row->render[idx] = '\0';
 	row->rsize = idx;
