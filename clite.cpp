@@ -21,6 +21,7 @@
 
 struct editorConfig
 {
+	int cx, cy;
 	int screenrows;
 	int screencols;
 	struct termios orig_termios;
@@ -240,13 +241,16 @@ void editorRefreshScreen()
 	abAppend(&ab, "\x1b[?25l", 6);
 	// Write \x1b[H to position the cursor at top-left (1,1), default for 'H'
 	abAppend(&ab, "\x1b[H", 3);
-	// Show the cursor with "\x1b[?25h"
-	abAppend(&ab, "\x1b[?25h", 6);
 
 	editorDrawRows(&ab);
 
-	// Again reposition cursor to top-left after drawing the rows
-	abAppend(&ab, "\x1b[H", 3);
+	char buf[32];
+	// Modified H command to move cursor to (1-indexed) position
+	snprintf(buf, sizeof(buf), "\x1b[%d;%dH", E.cy + 1, E.cx + 1);
+	abAppend(&ab, buf, strlen(buf));
+
+	// Show the cursor with "\x1b[?25h"
+	abAppend(&ab, "\x1b[?25h", 6);
 
 	// Write the contents of append buffer to screen once
 	write(STDOUT_FILENO, ab.b, ab.len);
@@ -274,6 +278,9 @@ void editorProcessKeypress()
 
 void initEditor()
 {
+	E.cx = 0;
+	E.cy = 0;
+
 	if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
 }
 
