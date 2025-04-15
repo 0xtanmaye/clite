@@ -51,7 +51,7 @@ struct editorConfig
 	int screenrows;
 	int screencols;
 	int numrows;
-	erow row;
+	erow *row;
 	struct termios orig_termios;
 };
 
@@ -237,6 +237,18 @@ int getWindowSize(int *rows, int *cols)
 	}
 }
 
+/*** row operations ***/
+
+void editorAppendRow(char *s, size_t len)
+{
+	E.row.size = len;
+	E.row.chars = (char*) malloc(len + 1);
+	memcpy(E.row.chars, s, len);
+	E.row.chars[len] = '\0';
+	E.numrows = 1;
+}
+
+
 /*** file i/o ***/
 
 /* Using fstream (C++ version)
@@ -253,13 +265,7 @@ void editorOpen(const char* filename)
 		while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
 			line.pop_back();
 		}
-
-		size_t linelen = line.length();
-		E.row.chars = (char*) malloc(linelen + 1);
-		memcpy(E.row.chars, line.c_str(), linelen);
-		E.row.chars[linelen] = '\0';
-		E.row.size = linelen;
-		E.numrows = 1;
+		editorAppendRow(line.c_str(), line.length);
 	}
 
 	file.close();
@@ -282,12 +288,9 @@ void editorOpen(char *filename)
 		while (linelen > 0 && (line[linelen - 1] == '\n' ||
 					line[linelen - 1] == '\r'))
 			linelen--;
+		editorAppendRow(line, linelen);
 
-		E.row.size = linelen;
-		E.row.chars = (char*) malloc(linelen + 1);
-		memcpy(E.row.chars, line, linelen);
-		E.row.chars[linelen] = '\0';
-		E.numrows = 1;
+		
 	}
 	free(line);
 	fclose(fp);
@@ -477,6 +480,7 @@ void initEditor()
 	E.cx = 0;
 	E.cy = 0;
 	E.numrows = 0;
+	E.row = NULL;
 
 	if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
 }
