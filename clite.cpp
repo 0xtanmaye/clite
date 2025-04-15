@@ -447,12 +447,20 @@ void editorMoveCursor(int key) {
 		case ARROW_LEFT:
 			if (E.cx != 0) {
 				E.cx--;
+			} else if (E.cy > 0) { // Check for first line
+				// Move cursor to end of previous line if at the beginning
+				E.cy--;
+				E.cx = E.row[E.cy].size;
 			}
 			break;
 		case ARROW_RIGHT:
 			// Move cursor right if within the current line's length, allowing one past
 			if (row && E.cx < row->size) {
 				E.cx++;
+			} else if (row && E.cx == row->size) {
+				// Move cursor to beginning of next line if at the end
+				E.cy++;
+				E.cx = 0;
 			}
 			break;
 		case ARROW_UP:
