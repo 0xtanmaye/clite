@@ -7,6 +7,7 @@
 #include <cstring>
 #include <iostream>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -230,6 +231,21 @@ int getWindowSize(int *rows, int *cols)
 	}
 }
 
+/*** file i/o ***/
+
+void editorOpen()
+{
+	const char *line = "Hello, world";
+	ssize_t linelen = 13;
+
+	E.row.size = linelen;
+	E.row.chars = (char *) malloc(linelen + 1);
+	memcpy(E.row.chars, line, linelen);
+	E.row.chars[linelen] = '\0';
+	E.numrows = 1;
+}
+
+
 /*** append buffer ***/
 
 struct abuf
@@ -268,27 +284,37 @@ void editorDrawRows(struct abuf *ab)
 {
 	int y;
 	for (y = 0; y < E.screenrows; y++) {
-		if (y == E.screenrows / 3) {
-			char welcome[80];
-			// Store the message in welcome buffer by interpolating the editor version
-			int welcomelen = snprintf(welcome, sizeof(welcome), 
-					"CLiTE editor -- version %s", CLITE_VERSION);
-			// Truncate length of the string if terminal size is too small
-			if (welcomelen > E.screencols) welcomelen = E.screencols;
-			// Calculate how far from the left should the welcome message start
-			int padding = (E.screencols - welcomelen ) / 2;
-			// Print the first character as tilde ('~')
-			if (padding) {
-				abAppend(ab, "~", 1);
-				padding--;
-			}
-			// Fill the remaining space with space characters (' ')
-			while (padding--) abAppend(ab, " ", 1);
+		// Check if drawing a row within the text buffer or after its end
+		if (y >= E.numrows) {
+			if (y == E.screenrows / 3) {
+				char welcome[80];
+				// Store the message in welcome buffer by interpolating the editor version
+				int welcomelen = snprintf(welcome, sizeof(welcome), 
+						"CLiTE editor -- version %s", CLITE_VERSION);
+				// Truncate length of the string if terminal size is too small
+				if (welcomelen > E.screencols) welcomelen = E.screencols;
+				// Calculate how far from the left should the welcome message start
+				int padding = (E.screencols - welcomelen ) / 2;
+				// Print the first character as tilde ('~')
+				if (padding) {
+					abAppend(ab, "~", 1);
+					padding--;
+				}
+				// Fill the remaining space with space characters (' ')
+				while (padding--) abAppend(ab, " ", 1);
 
-			abAppend(ab, welcome, welcomelen);
+				abAppend(ab, welcome, welcomelen);
+			} else {
+				abAppend(ab, "~", 1);
+			}
 		} else {
-			abAppend(ab, "~", 1);
+			int len = E.row.size;
+			// Truncate rendered line if it exceeds the screen width
+			if (len > E.screencols) len = E.screencols;
+			// Draw row by writing out the chars field of the erow
+			abAppend(ab, E.row.chars, len);
 		}
+
 
 		// Erase from the cursor to the end of the current line using "\x1b[K".
 		abAppend(ab, "\x1b[K", 3);
@@ -409,6 +435,7 @@ int main()
 {
 	enableRawMode();
 	initEditor();
+	editorOpen();
 
 	// Keep reading single character from STDIN
 	while (1) {
