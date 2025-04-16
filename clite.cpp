@@ -307,13 +307,16 @@ void editorUpdateRow(erow *row)
 	row->rsize = idx;
 }
 
-void editorAppendRow(const char *s, size_t len)
+void editorInsertRow(int at, char *s, size_t len)
 {
+	if (at < 0 || at > E.numrows) return;
+
 	// Reallocate memory for E.row to accommodate one more erow
 	E.row = (erow*) realloc(E.row, sizeof(erow) * (E.numrows + 1));
 
-	// Set 'at' to the new row index
-	int at = E.numrows;
+	// Make room for the new row at the specified index using memmove()
+	memmove(&E.row[at + 1], &E.row[at], sizeof(erow) * (E.numrows - at));
+
 	E.row[at].size = len;
 	E.row[at].chars = (char*) malloc(len + 1);
 	memcpy(E.row[at].chars, s, len);
@@ -401,13 +404,40 @@ void editorInsertChar(int c)
 {
 	// If cursor is past the last row, append a new empty row first
 	if (E.cy == E.numrows) {
-		editorAppendRow("", 0);
+		editorInsertRow(E.numrows, (char*) "", 0);
 	}
 
 	// Insert the character at the current cursor position
 	editorRowInsertChar(&E.row[E.cy], E.cx, c);
 	// Move cursor forward after insertion
 	E.cx++;
+}
+
+void editorInsertNewline()
+{
+	// If cursor is at the beginning of the line, insert a blank row before it
+	if (E.cx == 0) {
+		editorInsertRow(E.cy, (char*)"", 0);
+	} else {
+		// Otherwise, split the current row at the cursor position
+		erow *row = &E.row[E.cy];
+
+		// Insert a new row with the characters to the right of the cursor
+		editorInsertRow(E.cy + 1, &row->chars[E.cx], row->size - E.cx);
+
+		// Reassign the row pointer (because editorInsertRow() may reallocate memory)
+		row = &E.row[E.cy];
+
+		// Truncate the current row to the cursor position
+		row->size = E.cx;
+		row->chars[row->size] = '\0';
+
+		editorUpdateRow(row);
+	}
+
+	// Move the cursor to the beginning of the new row
+	E.cy++;
+	E.cx = 0;
 }
 
 void editorDelChar()
@@ -479,7 +509,7 @@ void editorOpen(const char* filename)
 		while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
 			line.pop_back();
 		}
-		editorAppendRow((char*) line.c_str(), line.length());
+		editorInsertRow(E.numrows, (char*) line.c_str(), line.length());
 	}
 
 	file.close();
@@ -504,7 +534,7 @@ void editorOpen(char *filename)
 		while (linelen > 0 && (line[linelen - 1] == '\n' ||
 					line[linelen - 1] == '\r'))
 			linelen--;
-		editorAppendRow(line, linelen);
+		editorInsertRow(E.numrows, line, linelen);
 	}
 	free(line);
 	fclose(fp);
@@ -806,7 +836,7 @@ void editorProcessKeypress()
 	switch (c) {
 		// Handle '\r' (Enter key)
 		case '\r':
-			/* TODO */
+			editorInsertNewline();
 			break;
 
 		// Handle Ctrl+Q to quit
