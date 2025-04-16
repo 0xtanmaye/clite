@@ -80,6 +80,8 @@ struct editorConfig E;
 /*** prototypes ***/
 
 void editorSetStatusMessage(const char *fmt, ...);
+void editorRefreshScreen();
+char *editorPrompt(char *prompt);
 
 
 /*** terminal ***/
@@ -545,7 +547,15 @@ void editorOpen(char *filename)
 // to ensure a safer save process, checking for errors at each step
 void editorSave()
 {
-	if (E.filename == NULL) return;
+	// Prompt the user for a filename when E.filename is NULL
+	if (E.filename == NULL) {
+		E.filename = editorPrompt((char*) "Save as: %s (ESC to cancel)");
+		if (E.filename == NULL) {
+			editorSetStatusMessage("Save aborted");
+			return;
+		}
+	}
+
 	int len;
 	// Get the editor content as a string and its length
 	char *buf = editorRowsToString(&len);
@@ -781,6 +791,58 @@ void editorSetStatusMessage(const char *fmt, ...)
 
 
 /*** input ***/
+
+char *editorPrompt(char *prompt)
+{
+	// Initial buffer size for input
+	size_t bufsize = 128;
+	char *buf = (char*) malloc(bufsize);
+	// Track the length of input
+	size_t buflen = 0;
+	// Initialize the buffer to an empty string
+	buf[0] = '\0';
+
+	while (1) {
+		// Display the prompt and user input in the status bar
+		editorSetStatusMessage(prompt, buf);
+		editorRefreshScreen();
+
+		// Wait for key press
+		int c = editorReadKey();
+
+		// Allow user to press Backspace (or Ctrl-H, or Delete) in the input prompt
+		if (c == DEL_KEY || c == CTRL_KEY('h') || c == BACKSPACE) {
+			if (buflen != 0) buf[--buflen] = '\0';
+		}
+		// Allow user to press Esc to cancel the input prompt
+		else if (c == '\x1b') {
+			editorSetStatusMessage("");
+			free(buf);
+			return NULL;
+		}
+		// If Enter is pressed and input is not empty, return the input
+		else if (c == '\r') {
+			if (buflen != 0) {
+				// Clear status message
+				editorSetStatusMessage("");
+				return buf;
+			}
+		}
+		// If a printable character is pressed, append it to the buffer
+		else if (!iscntrl(c) && c < 128) {
+			// Ensure the buffer has enough space, realloc if necessary
+			if (buflen == bufsize - 1) {
+				// Double the buffer size
+				bufsize *= 2;
+				buf = (char*) realloc(buf, bufsize);
+			}
+			// Append the character
+			buf[buflen++] = c;
+			// Null-terminate the string
+			buf[buflen] = '\0';
+		}
+	}
+}
 
 void editorMoveCursor(int key)
 {
