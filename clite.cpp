@@ -66,6 +66,7 @@ struct editorConfig
 	int screencols;
 	int numrows;
 	erow *row;
+	int dirty;
 	char *filename;
 	char statusmsg[80];
 	time_t statusmsg_time;
@@ -322,6 +323,7 @@ void editorAppendRow(const char *s, size_t len)
 	editorUpdateRow(&E.row[at]);
 
 	E.numrows++;
+	E.dirty++;
 }
 
 void editorRowInsertChar(erow *row, int at, int c)
@@ -335,6 +337,7 @@ void editorRowInsertChar(erow *row, int at, int c)
 	row->size++;
 	row->chars[at] = c;
 	editorUpdateRow(row);
+	E.dirty++;
 }
 
 
@@ -424,6 +427,7 @@ void editorOpen(char *filename)
 	}
 	free(line);
 	fclose(fp);
+	E.dirty = 0;
 }
 
 // TODO: Use a temporary file and rename it to the target file after writing
@@ -448,6 +452,7 @@ void editorSave()
 			if (write(fd, buf, len) == len) {
 				close(fd);
 				free(buf);
+				E.dirty = 0;
 				editorSetStatusMessage("%d bytes written to disk", len);
 				return;
 			}
@@ -579,8 +584,8 @@ void editorDrawStatusBar(struct abuf *ab)
 	char status[80], rstatus[80];
 
 	// Display filename (or [No Name]) and line count in the status bar.
-	int len = snprintf(status, sizeof(status), "%.20s - %d lines",
-			E.filename ? E.filename : "[No Name]", E.numrows);
+	int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
+			E.filename ? E.filename : "[No Name]", E.numrows, E.dirty ? "(modified)" : "");
 
 	// Display current line number in the right status string
 	int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d",
@@ -799,6 +804,7 @@ void initEditor()
 	E.coloff = 0;
 	E.numrows = 0;
 	E.row = NULL;
+	E.dirty = 0;
 	E.filename = NULL;
 	// E.statusmsg is empty string, so no message displayed by default
 	E.statusmsg[0] = '\0';
