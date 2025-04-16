@@ -282,6 +282,21 @@ int editorRowCxToRx(erow *row, int cx)
 	return rx;
 }
 
+int editorRowRxToCx(erow *row, int rx)
+{
+	int cur_rx = 0;
+	int cx;
+	for (cx = 0; cx < row->size; cx++) {
+		if (row->chars[cx] == '\t')
+			cur_rx += (CLITE_TAB_STOP - 1) - (cur_rx % CLITE_TAB_STOP);
+		cur_rx++;
+		// Return the char index once rx is reached
+		if (cur_rx > rx) return cx;
+	}
+	// In case rx exceeds the valid range
+	return cx;
+}
+
 void editorUpdateRow(erow *row)
 {
 	int tabs = 0;
@@ -584,6 +599,36 @@ void editorSave()
 	free(buf);
 	// strerror() returns the error message corresponding to errno
 	editorSetStatusMessage("Can't save! I/O error: %s", strerror(errno));
+}
+
+
+/*** search ***/
+
+void editorFind()
+{
+	// Get the search query from the user; ESC to cancel returns NULL
+	char *query = editorPrompt((char*) "Search: %s (ESC to cancel)");
+	if (query == NULL) return;
+
+	int i;
+	// Loop through all rows to search for the query
+	for (i = 0; i < E.numrows; i++) {
+		erow *row = &E.row[i];
+		// Check if query is found in the current row using strstr()
+		char *match = strstr(row->render, query);
+		if (match) {
+			// Set cursor position to the match's location
+			E.cy = i;
+			// Set the column to the position of the match within the row by calculating
+			// the offset between the start of the row and the match pointer
+			// Then converting the match rx to cx
+			E.cx = editorRowRxToCx(row, match - row->render);
+			// Set rowoff to bottom to scroll the match to the top of the screen
+			E.rowoff = E.numrows;
+			break;
+		}
+	}
+	free(query);
 }
 
 
@@ -930,6 +975,11 @@ void editorProcessKeypress()
 				E.cx = E.row[E.cy].size;
 			break;
 
+		case CTRL_KEY('f'):
+			editorFind();
+			break;
+
+
 		// Handle Backspace (127), Ctrl-H (8) (Old Backspace), and Delete (ESC[3~)
 		case BACKSPACE:
 		case CTRL_KEY('h'):
@@ -1009,9 +1059,8 @@ int main(int argc, char *argv[])
 		editorOpen(argv[1]);
 	}
 
-	editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit");
+	editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit | Ctrl-F = find");
 
-	// Keep reading single character from STDIN
 	while (1) {
 		editorRefreshScreen();
 		editorProcessKeypress();
