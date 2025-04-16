@@ -327,6 +327,27 @@ void editorAppendRow(const char *s, size_t len)
 	E.dirty++;
 }
 
+void editorFreeRow(erow *row)
+{
+	free(row->render);
+	free(row->chars);
+}
+
+void editorDelRow(int at)
+{
+	if (at < 0 || at >= E.numrows) return;
+	// Free memory associated with the row being deleted
+	editorFreeRow(&E.row[at]);
+
+	// Shift all rows after the deleted one up by one position
+	memmove(&E.row[at], &E.row[at + 1], sizeof(erow) * (E.numrows - at - 1));
+
+	// Decrease the total row count
+	E.numrows--;
+
+	E.dirty++;
+}
+
 void editorRowInsertChar(erow *row, int at, int c)
 {
 	// Clamp 'at' to be within [0, row->size], allowing insert at end of row
@@ -337,6 +358,22 @@ void editorRowInsertChar(erow *row, int at, int c)
 	memmove(&row->chars[at + 1], &row->chars[at], row->size - at + 1);
 	row->size++;
 	row->chars[at] = c;
+	editorUpdateRow(row);
+	E.dirty++;
+}
+
+void editorRowAppendString(erow *row, char *s, size_t len)
+{
+	// Reallocate memory for the row to accommodate the new string and null byte
+	row->chars = (char*) realloc(row->chars, row->size + len + 1);
+
+	// Copy the string to the end of the current row
+	memcpy(&row->chars[row->size], s, len);
+
+	// Update the row size and add a null terminator at the end
+	row->size += len;
+	row->chars[row->size] = '\0';
+
 	editorUpdateRow(row);
 	E.dirty++;
 }
@@ -377,6 +414,8 @@ void editorDelChar()
 {
 	// If the cursor is past the end of the file, do nothing
 	if (E.cy == E.numrows) return;
+	// If cursor is at the start of the first row, there's nothing to delete
+	if (E.cx == 0 && E.cy == 0) return;
 
 	// Get the row the cursor is currently on
 	erow *row = &E.row[E.cy];
@@ -386,6 +425,15 @@ void editorDelChar()
 		editorRowDelChar(row, E.cx - 1);
 		// Move the cursor one step left
 		E.cx--;
+	} else {
+		// Set cursor to the end of the previous row
+		E.cx = E.row[E.cy - 1].size;
+		// Append current row to previous one
+		editorRowAppendString(&E.row[E.cy - 1], row->chars, row->size);
+		// Delete the current row
+		editorDelRow(E.cy);
+		// Move cursor up to the previous row
+		E.cy--;
 	}
 }
 
