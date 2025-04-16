@@ -341,6 +341,22 @@ void editorRowInsertChar(erow *row, int at, int c)
 	E.dirty++;
 }
 
+void editorRowDelChar(erow *row, int at)
+{
+	// If the position is invalid (negative or beyond the row size), do nothing
+	if (at < 0 || at >= row->size) return;
+
+	// Shift characters left to overwrite the deleted one
+	// memmove handles overlapping memory regions, so it's safe to use here
+	memmove(&row->chars[at], &row->chars[at + 1], row->size - at);
+
+	// Decrease row size and update
+	row->size--;
+	editorUpdateRow(row);
+
+	E.dirty++;
+}
+
 
 /*** editor operations ***/
 
@@ -355,6 +371,22 @@ void editorInsertChar(int c)
 	editorRowInsertChar(&E.row[E.cy], E.cx, c);
 	// Move cursor forward after insertion
 	E.cx++;
+}
+
+void editorDelChar()
+{
+	// If the cursor is past the end of the file, do nothing
+	if (E.cy == E.numrows) return;
+
+	// Get the row the cursor is currently on
+	erow *row = &E.row[E.cy];
+
+	// If there is a character to the left of the cursor, delete it
+	if (E.cx > 0) {
+		editorRowDelChar(row, E.cx - 1);
+		// Move the cursor one step left
+		E.cx--;
+	}
 }
 
 
@@ -762,7 +794,9 @@ void editorProcessKeypress()
 		case BACKSPACE:
 		case CTRL_KEY('h'):
 		case DEL_KEY:
-			/* TODO */
+			// Delete (or Right Arrow + Backspace) removes the character right of the cursor
+			if (c == DEL_KEY) editorMoveCursor(ARROW_RIGHT);
+			editorDelChar();
 			break;
 
 		case PAGE_UP:
