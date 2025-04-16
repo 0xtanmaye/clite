@@ -606,19 +606,54 @@ void editorSave()
 
 void editorFindCallback(char *query, int key)
 {
+	// Stores the last match index or -1 if none
+	static int last_match = -1;
+	// Search direction: 1 for forward, -1 for backward
+	static int direction = 1;
+
 	// Exit search on Enter/Escape, else repeat search for any other key.
 	if (key == '\r' || key == '\x1b') {
+		// Reset last_match and direction to initial values as we are leaving search
+		last_match = -1;
+		direction = 1;
 		return;
+	} 
+	// Set direction to forward if right/down arrow keys are pressed
+	else if (key == ARROW_RIGHT || key == ARROW_DOWN) {
+		direction = 1;
 	}
+	// Set direction to backward if left/up arrow keys are pressed
+	else if (key == ARROW_LEFT || key == ARROW_UP) {
+		direction = -1;
+	}
+	// Reset search if any other key is pressed
+	else {
+		last_match = -1;
+		direction = 1;
+	}
+
+	// If there was no previous match, search starts from the first row, forward
+	if (last_match == -1) direction = 1;
+
+	// Start search from the last match position
+	int current = last_match;
+
 	int i;
 	// Loop through all rows to search for the query
 	for (i = 0; i < E.numrows; i++) {
-		erow *row = &E.row[i];
+		current += direction;
+
+		// Wrap around to the opposite end of the file when we reach the start/end
+		if (current == -1) current = E.numrows - 1;
+		else if (current == E.numrows) current = 0;
+
+		erow *row = &E.row[current];
 		// Check if query is found in the current row using strstr()
 		char *match = strstr(row->render, query);
 		if (match) {
+			last_match = current;
 			// Set cursor position to the match's location
-			E.cy = i;
+			E.cy = current;
 			// Set the column to the position of the match within the row by calculating
 			// the offset between the start of the row and the match pointer
 			// Then converting the match rx to cx
@@ -638,7 +673,8 @@ void editorFind()
 	int saved_rowoff = E.rowoff;
 
 	// Get the search query from the user; ESC to cancel returns NULL
-	char *query = editorPrompt((char*) "Search: %s (ESC to cancel)", editorFindCallback);
+	char *query = editorPrompt((char*) "Search: %s (Use ESC/Arrows/Enter)",
+					editorFindCallback);
 
 	if (query) {
 		free(query);
