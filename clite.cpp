@@ -13,6 +13,7 @@
 #include <ctime>
 // #include <fstream>
 #include <iostream>
+#include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <termios.h>
@@ -350,6 +351,31 @@ void editorInsertChar(int c)
 
 /*** file i/o ***/
 
+char *editorRowsToString(int *buflen)
+{
+	// Initialize total length of the final string
+	int totlen = 0;
+	int j;
+	// Loop through each row and add the row size + 1 (for newline)
+	for (j = 0; j < E.numrows; j++)
+		totlen += E.row[j].size + 1;
+	*buflen = totlen;
+	char *buf = (char*)malloc(totlen);
+	char *p = buf;
+	for (j = 0; j < E.numrows; j++) {
+		// Copy row characters into the buffer
+		memcpy(p, E.row[j].chars, E.row[j].size);
+		// Move pointer forward by row size
+		p += E.row[j].size;
+		// Add newline character after each row
+		*p = '\n';
+		p++;
+	}
+
+	// Return the constructed string (caller must free it)
+	return buf;
+}
+
 /* Using fstream (C++ version)
 void editorOpen(const char* filename)
 {
@@ -393,6 +419,30 @@ void editorOpen(char *filename)
 	}
 	free(line);
 	fclose(fp);
+}
+
+// TODO: Use a temporary file and rename it to the target file after writing
+// to ensure a safer save process, checking for errors at each step
+void editorSave()
+{
+	if (E.filename == NULL) return;
+	int len;
+	// Get the editor content as a string and its length
+	char *buf = editorRowsToString(&len);
+
+	// Open the file (create it if it doesn't exist, set permissions to 0644)
+	int fd = open(E.filename, O_RDWR | O_CREAT, 0644);
+
+	// Truncate the file to match the content length
+	// ftruncate() adjusts file size: truncates excess data or pads with 0 bytes
+	// Safer than O_TRUNC since it preserves data if write() fails after truncation
+	ftruncate(fd, len);
+
+	// Write the content to the file
+	write(fd, buf, len);
+
+	close(fd);
+	free(buf);
 }
 
 
@@ -662,6 +712,11 @@ void editorProcessKeypress()
 			write(STDOUT_FILENO, "\x1b[2J", 4);
 			write(STDOUT_FILENO, "\x1b[H", 3);
 			exit(0);
+			break;
+
+		// Handle Ctrl+S to save
+		case CTRL_KEY('s'):
+			editorSave();
 			break;
 
 		// For now make HOME and END key move the cursor to left/right edges
