@@ -81,7 +81,7 @@ struct editorConfig E;
 
 void editorSetStatusMessage(const char *fmt, ...);
 void editorRefreshScreen();
-char *editorPrompt(char *prompt);
+char *editorPrompt(char *prompt, void (*callback)(char *, int));
 
 
 /*** terminal ***/
@@ -564,7 +564,7 @@ void editorSave()
 {
 	// Prompt the user for a filename when E.filename is NULL
 	if (E.filename == NULL) {
-		E.filename = editorPrompt((char*) "Save as: %s (ESC to cancel)");
+		E.filename = editorPrompt((char*) "Save as: %s (ESC to cancel)", NULL);
 		if (E.filename == NULL) {
 			editorSetStatusMessage("Save aborted");
 			return;
@@ -604,12 +604,12 @@ void editorSave()
 
 /*** search ***/
 
-void editorFind()
+void editorFindCallback(char *query, int key)
 {
-	// Get the search query from the user; ESC to cancel returns NULL
-	char *query = editorPrompt((char*) "Search: %s (ESC to cancel)");
-	if (query == NULL) return;
-
+	// Exit search on Enter/Escape, else repeat search for any other key.
+	if (key == '\r' || key == '\x1b') {
+		return;
+	}
 	int i;
 	// Loop through all rows to search for the query
 	for (i = 0; i < E.numrows; i++) {
@@ -628,7 +628,16 @@ void editorFind()
 			break;
 		}
 	}
-	free(query);
+}
+
+void editorFind()
+{
+	// Get the search query from the user; ESC to cancel returns NULL
+	char *query = editorPrompt((char*) "Search: %s (ESC to cancel)", editorFindCallback);
+
+	if (query) {
+		free(query);
+	}
 }
 
 
@@ -837,7 +846,7 @@ void editorSetStatusMessage(const char *fmt, ...)
 
 /*** input ***/
 
-char *editorPrompt(char *prompt)
+char *editorPrompt(char *prompt, void (*callback)(char *, int))
 {
 	// Initial buffer size for input
 	size_t bufsize = 128;
@@ -862,6 +871,7 @@ char *editorPrompt(char *prompt)
 		// Allow user to press Esc to cancel the input prompt
 		else if (c == '\x1b') {
 			editorSetStatusMessage("");
+			if (callback) callback(buf, c);
 			free(buf);
 			return NULL;
 		}
@@ -870,6 +880,7 @@ char *editorPrompt(char *prompt)
 			if (buflen != 0) {
 				// Clear status message
 				editorSetStatusMessage("");
+				if (callback) callback(buf, c);
 				return buf;
 			}
 		}
@@ -886,6 +897,8 @@ char *editorPrompt(char *prompt)
 			// Null-terminate the string
 			buf[buflen] = '\0';
 		}
+
+		if (callback) callback(buf, c);
 	}
 }
 
