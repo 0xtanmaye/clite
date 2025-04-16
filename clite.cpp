@@ -75,6 +75,11 @@ struct editorConfig
 struct editorConfig E;
 
 
+/*** prototypes ***/
+
+void editorSetStatusMessage(const char *fmt, ...);
+
+
 /*** terminal ***/
 
 void die(const char *s)
@@ -433,16 +438,26 @@ void editorSave()
 	// Open the file (create it if it doesn't exist, set permissions to 0644)
 	int fd = open(E.filename, O_RDWR | O_CREAT, 0644);
 
-	// Truncate the file to match the content length
-	// ftruncate() adjusts file size: truncates excess data or pads with 0 bytes
-	// Safer than O_TRUNC since it preserves data if write() fails after truncation
-	ftruncate(fd, len);
+	// open() returns -1 on error
+	if (fd != -1) {
+		// Truncate the file to match the content length
+		// ftruncate() adjusts file size: truncates excess data or pads with 0 bytes
+		// Safer than O_TRUNC since it preserves data if write() fails after truncation
+		if (ftruncate(fd, len) != -1) {
+			// Write the content to the file
+			if (write(fd, buf, len) == len) {
+				close(fd);
+				free(buf);
+				editorSetStatusMessage("%d bytes written to disk", len);
+				return;
+			}
+		}
+		close(fd);
+	}
 
-	// Write the content to the file
-	write(fd, buf, len);
-
-	close(fd);
 	free(buf);
+	// strerror() returns the error message corresponding to errno
+	editorSetStatusMessage("Can't save! I/O error: %s", strerror(errno));
 }
 
 
@@ -803,7 +818,8 @@ int main(int argc, char *argv[])
 		editorOpen(argv[1]);
 	}
 
-	editorSetStatusMessage("HELP: Ctrl-Q = quit");
+	editorSetStatusMessage("HELP: Ctrl-S = save | Ctrl-Q = quit");
+
 	// Keep reading single character from STDIN
 	while (1) {
 		editorRefreshScreen();
