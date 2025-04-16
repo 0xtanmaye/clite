@@ -24,6 +24,7 @@
 
 #define CLITE_VERSION "0.0.1"
 #define CLITE_TAB_STOP 8
+#define CLITE_QUIT_TIMES 3
 
 // Clear upper 3 bits of 'k', similar to Ctrl behavior in terminal
 #define CTRL_KEY(k) ((k) & 0x01f)
@@ -718,6 +719,8 @@ void editorMoveCursor(int key)
 
 void editorProcessKeypress()
 {
+	static int quit_times = CLITE_QUIT_TIMES;
+
 	int c = editorReadKey();
 
 	switch (c) {
@@ -728,6 +731,12 @@ void editorProcessKeypress()
 
 		// Handle Ctrl+Q to quit
 		case CTRL_KEY('q'):
+			if (E.dirty && quit_times > 0) {
+				editorSetStatusMessage("WARNING!!! File has unsaved changes. "
+						"Press Ctrl-Q %d more times to quit.", quit_times);
+				quit_times--;
+				return;
+			}
 			// Clear the screen and reposition the cursor on exit
 			write(STDOUT_FILENO, "\x1b[2J", 4);
 			write(STDOUT_FILENO, "\x1b[H", 3);
@@ -790,6 +799,8 @@ void editorProcessKeypress()
 			editorInsertChar(c);
 			break;
 	}
+
+	quit_times = CLITE_QUIT_TIMES;
 }
 
 
