@@ -48,6 +48,7 @@ enum editorHighlight
 {
 	HL_NORMAL = 0,
 	HL_COMMENT,
+	HL_MLCOMMENT,
 	HL_KEYWORD1,
 	HL_KEYWORD2,
 	HL_STRING,
@@ -68,6 +69,8 @@ struct editorSyntax
 	const char **filematch;
 	const char **keywords;
 	const char *singleline_comment_start;
+	const char *multiline_comment_start;
+	const char *multiline_comment_end;
 	int flags;
 };
 
@@ -122,6 +125,8 @@ struct editorSyntax HLDB[] = {
 		C_HL_extensions,
 		C_HL_keywords,
 		"//",
+		"/*",
+		"*/",
 		HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
 	}
 };
@@ -340,7 +345,12 @@ void editorUpdateSyntax(erow *row)
 
 	// Alias for easier access to single-line comment start pattern
 	const char *scs = E.syntax->singleline_comment_start;
+	const char *mcs = E.syntax->multiline_comment_start;
+	const char *mce = E.syntax->multiline_comment_end;
+
 	int scs_len = scs ? strlen(scs) : 0;
+	int mcs_len = mcs ? strlen(mcs) : 0;
+	int mce_len = mce ? strlen(mce) : 0;
 
 	// Assume the beginning of the line is a separator
 	int prev_sep = 1;
@@ -450,7 +460,8 @@ void editorUpdateSyntax(erow *row)
 int editorSyntaxToColor(int hl)
 {
 	switch (hl) {
-		case HL_COMMENT: return 36;
+		case HL_COMMENT:
+		case HL_MLCOMMENT: return 36;
 		case HL_KEYWORD1: return 33;
 		case HL_KEYWORD2: return 32;
 		case HL_STRING: return 35;
