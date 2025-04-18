@@ -11,7 +11,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-// #include <fstream>
 #include <iostream>
 #include <fcntl.h>
 #include <sys/ioctl.h>
@@ -750,27 +749,6 @@ char *editorRowsToString(int *buflen)
 	// Return the constructed string (caller must free it)
 	return buf;
 }
-
-/* Using fstream (C++ version)
-void editorOpen(const char* filename)
-{
-	std::ifstream file(filename);
-	if (!file.is_open()) {
-		die("fopen");
-	}
-
-	std::string line;
-	while (std::getline(file, line)) {
-		// Strip trailing newline and carriage return characters
-		while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
-			line.pop_back();
-		}
-		editorInsertRow(E.numrows, (char*) line.c_str(), line.length());
-	}
-
-	file.close();
-}
-*/
 
 void editorOpen(char *filename)
 {
