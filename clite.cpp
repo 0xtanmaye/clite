@@ -111,13 +111,43 @@ struct editorConfig E;
 /*** filetypes ***/
 
 // Array of file extensions to match (e.g., .c, .h, .cpp). Terminated with NULL
-const char *C_HL_extensions[] = { ".c", ".h", ".cpp", NULL };
-const char *C_HL_keywords[] = {
-	"switch", "if", "while", "for", "break", "continue", "return", "else",
-	"struct", "union", "typedef", "static", "enum", "class", "case",
+const char *C_HL_extensions[] = { ".c", ".h", NULL };
+const char *CPP_HL_extensions[] = { ".C", ".cc", ".cp", ".cpp", ".cxx", ".c++", NULL };
+const char *JAVA_HL_extensions[] = { ".java", NULL };
 
-	"int|", "long|", "double|", "float|", "char|", "unsigned|", "signed|",
-	"void|", NULL
+const char *C_HL_keywords[] = { "auto", "break", "case", "const", "continue", 
+	"default", "do", "else", "enum", "extern", "for", "goto", "if", "register", 
+	"return", "short", "sizeof", "static", "struct", "switch", "typedef", 
+	"union", "unsigned", "volatile", "while", 
+	"char|", "double|", "float|", "int|", "long|", "signed|", "void|", NULL 
+};
+
+const char *CPP_HL_keywords[] = { "alignas", "alignof", "and", "and_eq", "asm", 
+	"auto", "bitand", "bitor", "break", "case", "catch", "class", "compl", 
+	"const", "constexpr", "const_cast", "continue", "decltype", "default", 
+	"delete", "do", "dynamic_cast", "else", "enum", "explicit", "export", 
+	"extern", "false", "for", "friend", "goto", "if", "inline", "mutable", 
+	"namespace", "new", "noexcept", "not", "not_eq", "nullptr", "operator", "or", 
+	"or_eq", "private", "protected", "public", "register", "reinterpret_cast", 
+	"return", "sizeof", "static", "static_assert", "static_cast", "struct", 
+	"switch", "template", "this", "thread_local", "throw", "true", "try", 
+	"typedef", "typeid", "typename", "union", "using", "virtual", "volatile", 
+	"while", "xor", "xor_eq", 
+	"bool|", "char|", "char16_t|", "char32_t|", "double|", "float|", "int|", 
+	"long|", "short|", "signed|", "unsigned|", "void|", "wchar_t|", NULL 
+};
+
+const char *JAVA_HL_keywords[] = {
+	"abstract", "assert", "break", "case", "catch",
+	"class", "continue", "default", "do", "else",
+	"enum", "extends", "final", "finally", "for",
+	"if", "implements", "import", "instanceof", "interface",
+	"native", "new", "package", "private", "protected",
+	"public", "return", "static", "strictfp", "super",
+	"switch", "synchronized", "this", "throw", "throws",
+	"transient", "try", "volatile", "while",
+	"boolean|", "byte|", "char|", "double|", "float|",
+	"int|", "long|", "short|", "void|", NULL
 };
 
 // HLDB - Highlight Database
@@ -130,7 +160,26 @@ struct editorSyntax HLDB[] = {
 		"/*",
 		"*/",
 		HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
-	}
+	},
+	{
+		"c++",
+		CPP_HL_extensions,
+		CPP_HL_keywords,
+		"//",
+		"/*",
+		"*/",
+		HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
+	},
+	{
+		"java",
+		JAVA_HL_extensions,
+		JAVA_HL_keywords,
+		"//",
+		"/*",
+		"*/",
+		HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
+	},
+
 };
 
 // Constant to store the length of the HLDB array
