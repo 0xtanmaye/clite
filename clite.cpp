@@ -276,19 +276,43 @@ int getWindowSize(int *rows, int *cols)
 
 /*** syntax highlighting ***/
 
+int is_separator(int c)
+{
+	// strchr() finds the first occurrence of `c` in the string
+	// Returns a pointer to the character or NULL if not found.
+	return isspace(c) || c == '\0' || strchr(",.()+-/*=~%<>[];", c) != NULL;
+}
+
 void editorUpdateSyntax(erow *row)
 {
 	// Reallocate `hl` to match `render` size (`rsize`)
 	row->hl = (unsigned char*) realloc(row->hl, row->rsize);
-
 	// Set all `hl` values to HL_NORMAL (default)
 	memset(row->hl, HL_NORMAL, row->rsize);
-	int i;
-	for (i = 0; i < row->rsize; i++) {
-		// If the character is a digit, set its highlight to HL_NUMBER
-		if (isdigit(row->render[i])) {
+
+	// Assume the beginning of the line is a separator
+	int prev_sep = 1;
+
+	int i = 0;
+	// Use a while loop for future flexibility (e.g., multi-char patterns)
+	while (i < row->rsize) {
+		char c = row->render[i];
+		// Get the highlight type of the previous character
+		unsigned char prev_hl = (i > 0) ? row->hl[i - 1] : HL_NORMAL;
+
+		// If current char is a digit and the previous character is a separator
+		// or part of a number (prev_hl == HL_NUMBER), or a dot (.) after a number
+		if ((isdigit(c) && (prev_sep || prev_hl == HL_NUMBER)) ||
+				(c == '.' && prev_hl == HL_NUMBER)) {
 			row->hl[i] = HL_NUMBER;
+			i++;
+			// Inside a number, not a separator.
+			prev_sep = 0;
+			continue;
 		}
+		// Mark separator and move to the next character
+		prev_sep = is_separator(c);
+		i++;
 	}
 }
 
