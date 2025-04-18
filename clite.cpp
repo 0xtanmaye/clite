@@ -52,8 +52,18 @@ enum editorHighlight
 	HL_MATCH
 };
 
+#define HL_HIGHLIGHT_NUMBERS (1<<0)
+
 
 /*** data ***/
+
+// Syntax highlighting information for a particular filetype
+struct editorSyntax
+{
+	const char *filetype;
+	const char **filematch;
+	int flags;
+};
 
 // erow - Editor row
 // TOOD: Implement using std::string/vector if possible
@@ -80,10 +90,29 @@ struct editorConfig
 	char *filename;
 	char statusmsg[80];
 	time_t statusmsg_time;
+	struct editorSyntax *syntax;
 	struct termios orig_termios;
 };
 
 struct editorConfig E;
+
+
+/*** filetypes ***/
+
+// Array of file extensions to match (e.g., .c, .h, .cpp). Terminated with NULL
+const char *C_HL_extensions[] = { ".c", ".h", ".cpp", NULL };
+
+// HLDB - Highlight Database
+struct editorSyntax HLDB[] = {
+	{
+		"c",
+		C_HL_extensions,
+		HL_HIGHLIGHT_NUMBERS
+	},
+};
+
+// Constant to store the length of the HLDB array
+#define HLDB_ENTRIES (sizeof(HLDB) / sizeof(HLDB[0]))
 
 
 /*** prototypes ***/
@@ -290,6 +319,8 @@ void editorUpdateSyntax(erow *row)
 	// Set all `hl` values to HL_NORMAL (default)
 	memset(row->hl, HL_NORMAL, row->rsize);
 
+	if (E.syntax == NULL) return;
+
 	// Assume the beginning of the line is a separator
 	int prev_sep = 1;
 
@@ -300,16 +331,19 @@ void editorUpdateSyntax(erow *row)
 		// Get the highlight type of the previous character
 		unsigned char prev_hl = (i > 0) ? row->hl[i - 1] : HL_NORMAL;
 
-		// If current char is a digit and the previous character is a separator
-		// or part of a number (prev_hl == HL_NUMBER), or a dot (.) after a number
-		if ((isdigit(c) && (prev_sep || prev_hl == HL_NUMBER)) ||
-				(c == '.' && prev_hl == HL_NUMBER)) {
-			row->hl[i] = HL_NUMBER;
-			i++;
-			// Inside a number, not a separator.
-			prev_sep = 0;
-			continue;
+		if (E.syntax->flags & HL_HIGHLIGHT_NUMBERS) {
+			// If current char is a digit and the previous character is a separator
+			// or part of a number (prev_hl == HL_NUMBER), or a dot (.) after a number
+			if ((isdigit(c) && (prev_sep || prev_hl == HL_NUMBER)) ||
+					(c == '.' && prev_hl == HL_NUMBER)) {
+				row->hl[i] = HL_NUMBER;
+				i++;
+				// Inside a number, not a separator.
+				prev_sep = 0;
+				continue;
+			}
 		}
+
 		// Mark separator and move to the next character
 		prev_sep = is_separator(c);
 		i++;
@@ -323,6 +357,43 @@ int editorSyntaxToColor(int hl)
 		case HL_NUMBER: return 31;
 		case HL_MATCH: return 34;
 		default: return 37;
+	}
+}
+
+// Selects syntax highlighting based on the file extension or filename
+void editorSelectSyntaxHighlight()
+{
+	E.syntax = NULL;
+	// Exit if no filename is present
+	if (E.filename == NULL) return;
+
+	// Get the extension from the filename using strrchr()
+	char *ext = strrchr(E.filename, '.');
+
+	// Loop through all entries in the HLDB (syntax database)
+	for (unsigned int j = 0; j < HLDB_ENTRIES; j++) {
+		struct editorSyntax *s = &HLDB[j];
+		unsigned int i = 0;
+		// Check each filematch pattern in the current editorSyntax
+		while (s->filematch[i]) {
+			// Check if pattern is an extension
+			int is_ext = (s->filematch[i][0] == '.');
+
+			// Match file extension or substring of filename
+			if ((is_ext && ext && !strcmp(ext, s->filematch[i])) || // Extension match
+					(!is_ext && strstr(E.filename, s->filematch[i]))) { // Substring match
+				E.syntax = s;
+
+				// Rehighlight each row in the file after setting E.syntax
+				int filerow;
+				for (filerow = 0; filerow < E.numrows; filerow++) {
+					editorUpdateSyntax(&E.row[filerow]);
+				}
+
+				return;
+			}
+			i++;
+		}
 	}
 }
 
@@ -605,6 +676,9 @@ void editorOpen(char *filename)
 	free(E.filename);
 	E.filename = strdup(filename);
 
+	// Set E.syntax according to E.filename
+	editorSelectSyntaxHighlight();
+
 	FILE *fp = fopen(filename, "r");
 	if (!fp) die("fopen");
 
@@ -636,6 +710,8 @@ void editorSave()
 			editorSetStatusMessage("Save aborted");
 			return;
 		}
+		// Set E.syntax according to E.filename
+		editorSelectSyntaxHighlight();
 	}
 
 	int len;
@@ -927,9 +1003,9 @@ void editorDrawStatusBar(struct abuf *ab)
 	int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
 			E.filename ? E.filename : "[No Name]", E.numrows, E.dirty ? "(modified)" : "");
 
-	// Display current line number in the right status string
-	int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d",
-			E.cy + 1, E.numrows);
+	// Display the filetype and current line number in the right status string
+	int rlen = snprintf(rstatus, sizeof(rstatus), "%s | %d/%d",
+			E.syntax ? E.syntax->filetype : "no ft", E.cy + 1, E.numrows);
 
 	// Cut the status string short if doesn't fit inside screen width
 	if (len > E.screencols) len = E.screencols;
@@ -1222,6 +1298,7 @@ void initEditor()
 	// E.statusmsg is empty string, so no message displayed by default
 	E.statusmsg[0] = '\0';
 	E.statusmsg_time = 0;
+	E.syntax = NULL;
 
 
 	if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
