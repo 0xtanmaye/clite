@@ -47,8 +47,8 @@ enum editorKey
 // Enum for highlighting types
 enum editorHighlight
 {
-	HL_NORMAL = 0, // Default state, no special highlighting 
-	HL_NUMBER // For highlighting numbers
+	HL_NORMAL = 0,
+	HL_NUMBER
 };
 
 
@@ -58,10 +58,10 @@ enum editorHighlight
 // TOOD: Implement using std::string/vector if possible
 struct erow
 {
-	int size;
-	int rsize;
-	char *chars;
-	char *render;
+	int size; // Number of characters in the row
+	int rsize; // Number of characters in the render (with formatting)
+	char *chars; // The raw characters in the row
+	char *render; // The formatted (rendered) text
 	unsigned char *hl; // Array to store highlighting info for each character
 };
 
@@ -273,6 +273,34 @@ int getWindowSize(int *rows, int *cols)
 }
 
 
+/*** syntax highlighting ***/
+
+void editorUpdateSyntax(erow *row)
+{
+	// Reallocate `hl` to match `render` size (`rsize`)
+	row->hl = (unsigned char*) realloc(row->hl, row->rsize);
+
+	// Set all `hl` values to HL_NORMAL (default)
+	memset(row->hl, HL_NORMAL, row->rsize);
+	int i;
+	for (i = 0; i < row->rsize; i++) {
+		// If the character is a digit, set its highlight to HL_NUMBER
+		if (isdigit(row->render[i])) {
+			row->hl[i] = HL_NUMBER;
+		}
+	}
+}
+
+// Map syntax highlight value (`hl`) to corresponding ANSI color code
+int editorSyntaxToColor(int hl)
+{
+	switch (hl) {
+		case HL_NUMBER: return 31;
+		default: return 37;
+	}
+}
+
+
 /*** row operations ***/
 
 int editorRowCxToRx(erow *row, int cx)
@@ -330,6 +358,9 @@ void editorUpdateRow(erow *row)
 	}
 	row->render[idx] = '\0';
 	row->rsize = idx;
+
+	// After updating render, call editorUpdateSyntax to apply syntax highlighting
+	editorUpdateSyntax(row);
 }
 
 void editorInsertRow(int at, char *s, size_t len)
@@ -797,25 +828,40 @@ void editorDrawRows(struct abuf *ab)
 			if (len < 0) len = 0;
 			// Truncate rendered line if it exceeds the screen width
 			if (len > E.screencols) len = E.screencols;
-			// Set `c` to the correct part of `render` based on `filerow` and `coloff`
+			// Set `c` & 'hl' to the correct part of `render` based on filerow & coloff
 			char *c = &E.row[filerow].render[E.coloff];
+			unsigned char *hl = &E.row[filerow].hl[E.coloff];
+
+			// -1 means default color (HL_NORMAL)
+			int current_color = -1;
+
 			int j;
 			for (j = 0; j < len; j++) {
-				// If the character is a digit, apply red color using escape sequences
-				if (isdigit(c[j])) {
-					// Escape sequence "\x1b[31m": SGR command, 31 sets text color to red
-					abAppend(ab, "\x1b[31m", 5);
-					// Append the digit character
+				if (hl[j] == HL_NORMAL) {
+					// Reset to default color when switching from highlighted to normal
+					if (current_color != -1) {
+						// Escape sequence "\x1b[39m": SGR command, 39 resets to default color
+						abAppend(ab, "\x1b[39m", 5);
+						current_color = -1;
+					}
 					abAppend(ab, &c[j], 1);
-					// Escape sequence "\x1b[39m": SGR command, 39 resets to default color
-					abAppend(ab, "\x1b[39m", 5);
 				} else {
-					// If not a digit, just append the character without color
+					// Apply color when text is highlighted
+					int color = editorSyntaxToColor(hl[j]); // Get color code
+					if (color != current_color) {
+						current_color = color;
+						char buf[16];
+						int clen = snprintf(buf, sizeof(buf), "\x1b[%dm", color);
+						// Apply new color
+						abAppend(ab, buf, clen);
+					}
+					// Append the character
 					abAppend(ab, &c[j], 1);
 				}
 			}
+			// Escape sequence "\x1b[39m": SGR command, 39 resets to default color
+			abAppend(ab, "\x1b[39m", 5);
 		}
-
 
 		// Erase from the cursor to the end of the current line using "\x1b[K".
 		abAppend(ab, "\x1b[K", 3);
