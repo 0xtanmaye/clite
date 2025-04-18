@@ -48,7 +48,8 @@ enum editorKey
 enum editorHighlight
 {
 	HL_NORMAL = 0,
-	HL_NUMBER
+	HL_NUMBER,
+	HL_MATCH
 };
 
 
@@ -296,6 +297,7 @@ int editorSyntaxToColor(int hl)
 {
 	switch (hl) {
 		case HL_NUMBER: return 31;
+		case HL_MATCH: return 34;
 		default: return 37;
 	}
 }
@@ -701,6 +703,9 @@ void editorFindCallback(char *query, int key)
 			E.cx = editorRowRxToCx(row, match - row->render);
 			// Set rowoff to bottom to scroll the match to the top of the screen
 			E.rowoff = E.numrows;
+
+			// Mark the matched substring as HL_MATCH in the `hl` array
+			memset(&row->hl[match - row->render], HL_MATCH, strlen(query));
 			break;
 		}
 	}
