@@ -44,6 +44,13 @@ enum editorKey
 	PAGE_DOWN
 };
 
+// Enum for highlighting types
+enum editorHighlight
+{
+	HL_NORMAL = 0, // Default state, no special highlighting 
+	HL_NUMBER // For highlighting numbers
+};
+
 
 /*** data ***/
 
@@ -55,6 +62,7 @@ struct erow
 	int rsize;
 	char *chars;
 	char *render;
+	unsigned char *hl; // Array to store highlighting info for each character
 };
 
 struct editorConfig
@@ -341,6 +349,7 @@ void editorInsertRow(int at, char *s, size_t len)
 
 	E.row[at].rsize = 0;
 	E.row[at].render = NULL;
+	E.row[at].hl = NULL;
 	editorUpdateRow(&E.row[at]);
 
 	E.numrows++;
@@ -351,6 +360,7 @@ void editorFreeRow(erow *row)
 {
 	free(row->render);
 	free(row->chars);
+	free(row->hl);
 }
 
 void editorDelRow(int at)
