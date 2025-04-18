@@ -787,8 +787,23 @@ void editorDrawRows(struct abuf *ab)
 			if (len < 0) len = 0;
 			// Truncate rendered line if it exceeds the screen width
 			if (len > E.screencols) len = E.screencols;
-			// Draw row by writing out the chars field of the erow
-			abAppend(ab, &E.row[filerow].render[E.coloff], len);
+			// Set `c` to the correct part of `render` based on `filerow` and `coloff`
+			char *c = &E.row[filerow].render[E.coloff];
+			int j;
+			for (j = 0; j < len; j++) {
+				// If the character is a digit, apply red color using escape sequences
+				if (isdigit(c[j])) {
+					// Escape sequence "\x1b[31m": SGR command, 31 sets text color to red
+					abAppend(ab, "\x1b[31m", 5);
+					// Append the digit character
+					abAppend(ab, &c[j], 1);
+					// Escape sequence "\x1b[39m": SGR command, 39 resets to default color
+					abAppend(ab, "\x1b[39m", 5);
+				} else {
+					// If not a digit, just append the character without color
+					abAppend(ab, &c[j], 1);
+				}
+			}
 		}
 
 
