@@ -654,6 +654,20 @@ void editorFindCallback(char *query, int key)
 	// Search direction: 1 for forward, -1 for backward
 	static int direction = 1;
 
+	// Line number where highlights need to be restored
+	static int saved_hl_line;
+	// Holds the previous highlight state for a row
+	static char *saved_hl = NULL;
+
+	// Restore previous highlight state if it exists
+	if (saved_hl) {
+		memcpy(E.row[saved_hl_line].hl, saved_hl, E.row[saved_hl_line].rsize);
+		// Free the saved memory after restoring
+		free(saved_hl);
+		// Reset the saved highlight pointer
+		saved_hl = NULL;
+	}
+
 	// Exit search on Enter/Escape, else repeat search for any other key.
 	if (key == '\r' || key == '\x1b') {
 		// Reset last_match and direction to initial values as we are leaving search
@@ -704,6 +718,10 @@ void editorFindCallback(char *query, int key)
 			// Set rowoff to bottom to scroll the match to the top of the screen
 			E.rowoff = E.numrows;
 
+			// Save current highlight state before modifying it
+			saved_hl_line = current;
+			saved_hl = (char*) malloc(row->rsize);
+			memcpy(saved_hl, row->hl, row->rsize);
 			// Mark the matched substring as HL_MATCH in the `hl` array
 			memset(&row->hl[match - row->render], HL_MATCH, strlen(query));
 			break;
