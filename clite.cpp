@@ -48,11 +48,13 @@ enum editorKey
 enum editorHighlight
 {
 	HL_NORMAL = 0,
+	HL_STRING,
 	HL_NUMBER,
 	HL_MATCH
 };
 
 #define HL_HIGHLIGHT_NUMBERS (1<<0)
+#define HL_HIGHLIGHT_STRINGS (1<<1)
 
 
 /*** data ***/
@@ -107,8 +109,8 @@ struct editorSyntax HLDB[] = {
 	{
 		"c",
 		C_HL_extensions,
-		HL_HIGHLIGHT_NUMBERS
-	},
+		HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
+	}
 };
 
 // Constant to store the length of the HLDB array
@@ -324,6 +326,8 @@ void editorUpdateSyntax(erow *row)
 	// Assume the beginning of the line is a separator
 	int prev_sep = 1;
 
+	int in_string = 0;
+
 	int i = 0;
 	// Use a while loop for future flexibility (e.g., multi-char patterns)
 	while (i < row->rsize) {
@@ -331,6 +335,39 @@ void editorUpdateSyntax(erow *row)
 		// Get the highlight type of the previous character
 		unsigned char prev_hl = (i > 0) ? row->hl[i - 1] : HL_NORMAL;
 
+		// Handle string highlighting if enabled
+		if (E.syntax->flags & HL_HIGHLIGHT_STRINGS) {
+			if (in_string) {
+				// Highlight character as part of a string
+				row->hl[i] = HL_STRING;
+				// Handle escaped quotes inside strings (e.g., \" or \')
+				if (c == '\\' && i + 1 < row->rsize) {
+					// Highlight the character after the backslash
+					row->hl[i + 1] = HL_STRING;
+					// Consume both characters
+					i += 2;
+					continue;
+				}
+				// End string if the closing quote is found
+				if (c == in_string) in_string = 0;
+				i++;
+				// Closing quote is considered a separator
+				prev_sep = 1;
+				continue;
+			} else {
+				// Start string if we encounter a quote (single or double)
+				if (c == '"' || c == '\'') {
+					// Store the type of quote
+					in_string = c;
+					// Highlight the opening quote
+					row->hl[i] = HL_STRING;
+					i++;
+					continue;
+				}
+			}
+		}
+
+		// Handle number highlighting if enabled
 		if (E.syntax->flags & HL_HIGHLIGHT_NUMBERS) {
 			// If current char is a digit and the previous character is a separator
 			// or part of a number (prev_hl == HL_NUMBER), or a dot (.) after a number
@@ -354,6 +391,7 @@ void editorUpdateSyntax(erow *row)
 int editorSyntaxToColor(int hl)
 {
 	switch (hl) {
+		case HL_STRING: return 35;
 		case HL_NUMBER: return 31;
 		case HL_MATCH: return 34;
 		default: return 37;
