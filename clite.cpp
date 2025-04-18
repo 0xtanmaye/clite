@@ -48,6 +48,7 @@ enum editorKey
 enum editorHighlight
 {
 	HL_NORMAL = 0,
+	HL_COMMENT,
 	HL_STRING,
 	HL_NUMBER,
 	HL_MATCH
@@ -64,6 +65,7 @@ struct editorSyntax
 {
 	const char *filetype;
 	const char **filematch;
+	const char *singleline_comment_start;
 	int flags;
 };
 
@@ -109,6 +111,7 @@ struct editorSyntax HLDB[] = {
 	{
 		"c",
 		C_HL_extensions,
+		"//",
 		HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
 	}
 };
@@ -323,6 +326,10 @@ void editorUpdateSyntax(erow *row)
 
 	if (E.syntax == NULL) return;
 
+	// Alias for easier access to single-line comment start pattern
+	const char *scs = E.syntax->singleline_comment_start;
+	int scs_len = scs ? strlen(scs) : 0;
+
 	// Assume the beginning of the line is a separator
 	int prev_sep = 1;
 
@@ -334,6 +341,17 @@ void editorUpdateSyntax(erow *row)
 		char c = row->render[i];
 		// Get the highlight type of the previous character
 		unsigned char prev_hl = (i > 0) ? row->hl[i - 1] : HL_NORMAL;
+
+		// Highlight single-line comments if applicable
+		if (scs_len && !in_string) {
+			// Check if we encounter the start of a single-line comment
+			if (!strncmp(&row->render[i], scs, scs_len)) {
+				// Highlight the rest of the line
+				memset(&row->hl[i], HL_COMMENT, row->rsize - i);
+				// End highlighting for the line
+				break;
+			}
+		}
 
 		// Handle string highlighting if enabled
 		if (E.syntax->flags & HL_HIGHLIGHT_STRINGS) {
@@ -391,6 +409,7 @@ void editorUpdateSyntax(erow *row)
 int editorSyntaxToColor(int hl)
 {
 	switch (hl) {
+		case HL_COMMENT: return 36;
 		case HL_STRING: return 35;
 		case HL_NUMBER: return 31;
 		case HL_MATCH: return 34;
